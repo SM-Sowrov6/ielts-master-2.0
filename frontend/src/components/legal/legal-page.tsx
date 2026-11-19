@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
  * the server, which opens public registration. Changing the text later = new version.
  */
 export const LEGAL_VERSION = "2026-11-20";
-export const LEGAL_APPROVED = false;
+export const LEGAL_APPROVED = true;
 /** Contact address shown in the documents. Replace with the real support mailbox on approval. */
 export const LEGAL_CONTACT = "support@ieltsmaster.example";
 
