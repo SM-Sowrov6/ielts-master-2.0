@@ -45,3 +45,4 @@ Thumbs.db
 
 # --- Deployment (server-only files) ---
 infrastructure/deploy/backups/
+infrastructure/deploy/cloudflared/

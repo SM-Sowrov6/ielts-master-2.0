@@ -1,0 +1,11 @@
+# Cloudflare Tunnel mode: Cloudflare serves HTTPS at the edge; cloudflared reaches Caddy over
+# plain HTTP on the private Docker network. No ports are published on the host.
+{
+	auto_https off
+}
+
+import /etc/caddy/routes.caddy
+
+http://{$DOMAIN}, http://www.{$DOMAIN} {
+	import app_routes
+}

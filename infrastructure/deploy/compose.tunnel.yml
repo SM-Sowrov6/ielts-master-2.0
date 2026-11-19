@@ -1,0 +1,23 @@
+# Override for running the production stack behind a Cloudflare Tunnel (e.g. on a home PC with
+# no public IP or open ports). Use together with compose.prod.yml:
+#   docker compose -f infrastructure/deploy/compose.prod.yml -f infrastructure/deploy/compose.tunnel.yml \
+#     --env-file infrastructure/deploy/.env up -d --build
+# One-time tunnel setup: infrastructure/deploy/tunnel-setup.sh
+
+services:
+  caddy:
+    ports: !reset []
+    volumes: !override
+      - ./Caddyfile.tunnel:/etc/caddy/Caddyfile:ro
+      - ./routes.caddy:/etc/caddy/routes.caddy:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+  cloudflared:
+    image: cloudflare/cloudflared:2026.10.1
+    command: ["tunnel", "--no-autoupdate", "--config", "/etc/cloudflared/config.yml", "run"]
+    volumes:
+      - ./cloudflared:/etc/cloudflared:ro
+    depends_on:
+      - caddy
+    restart: unless-stopped
