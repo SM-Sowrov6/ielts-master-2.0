@@ -3177,6 +3177,83 @@
         "title": "MediaUrlOut",
         "type": "object"
       },
+      "MfaCodeRequest": {
+        "properties": {
+          "code": {
+            "maxLength": 20,
+            "minLength": 6,
+            "title": "Code",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "title": "MfaCodeRequest",
+        "type": "object"
+      },
+      "MfaEnrolledResponse": {
+        "properties": {
+          "recovery_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Recovery Codes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "recovery_codes"
+        ],
+        "title": "MfaEnrolledResponse",
+        "type": "object"
+      },
+      "MfaSetupResponse": {
+        "properties": {
+          "otpauth_uri": {
+            "title": "Otpauth Uri",
+            "type": "string"
+          },
+          "secret": {
+            "title": "Secret",
+            "type": "string"
+          }
+        },
+        "required": [
+          "secret",
+          "otpauth_uri"
+        ],
+        "title": "MfaSetupResponse",
+        "type": "object"
+      },
+      "MfaStatusResponse": {
+        "properties": {
+          "enrolled": {
+            "title": "Enrolled",
+            "type": "boolean"
+          },
+          "recovery_codes_left": {
+            "title": "Recovery Codes Left",
+            "type": "integer"
+          },
+          "required": {
+            "title": "Required",
+            "type": "boolean"
+          },
+          "verified": {
+            "title": "Verified",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "enrolled",
+          "verified",
+          "required",
+          "recovery_codes_left"
+        ],
+        "title": "MfaStatusResponse",
+        "type": "object"
+      },
       "ModeRulesOut": {
         "properties": {
           "allow_seek": {
@@ -11167,6 +11244,189 @@
           }
         },
         "summary": "Me",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/me/mfa": {
+      "get": {
+        "operationId": "mfa_status_api_v1_me_mfa_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {}
+            },
+            "description": "Not signed in"
+          }
+        },
+        "summary": "Mfa Status",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/me/mfa/totp/confirm": {
+      "post": {
+        "operationId": "mfa_confirm_api_v1_me_mfa_totp_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaEnrolledResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {}
+            },
+            "description": "Code invalid"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {}
+            },
+            "description": "Not signed in"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {}
+            },
+            "description": "No pending setup"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {}
+            },
+            "description": "Too many"
+          }
+        },
+        "summary": "Confirm the authenticator; returns single-use recovery codes and upgrades the session",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/me/mfa/totp/setup": {
+      "post": {
+        "operationId": "mfa_setup_api_v1_me_mfa_totp_setup_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MfaSetupResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {}
+            },
+            "description": "Not signed in"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {}
+            },
+            "description": "Already enrolled"
+          }
+        },
+        "summary": "Start authenticator setup (returns the secret once)",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/v1/me/mfa/verify": {
+      "post": {
+        "operationId": "mfa_verify_api_v1_me_mfa_verify_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MfaCodeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "400": {
+            "content": {
+              "application/problem+json": {}
+            },
+            "description": "Code invalid"
+          },
+          "401": {
+            "content": {
+              "application/problem+json": {}
+            },
+            "description": "Not signed in"
+          },
+          "409": {
+            "content": {
+              "application/problem+json": {}
+            },
+            "description": "Not enrolled"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {}
+            },
+            "description": "Too many"
+          }
+        },
+        "summary": "Pass the second factor (authenticator or recovery code); upgrades the session",
         "tags": [
           "auth"
         ]

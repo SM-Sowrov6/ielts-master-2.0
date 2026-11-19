@@ -59,6 +59,8 @@ class CurrentUser:
     roles: frozenset[str]
     permissions: frozenset[str]
     session_id: uuid.UUID
+    # True when this session was issued after a successful second factor (staff 2FA).
+    mfa_verified: bool = False
 
     def has(self, permission: str) -> bool:
         return permission in self.permissions
@@ -93,6 +95,7 @@ async def create_session(
     settings: Settings,
     user_agent: str | None,
     ip_prefix: str | None,
+    mfa_verified: bool = False,
 ) -> str:
     """Insert a session in the caller's transaction and return the raw token (cookie only)."""
     token = new_session_token()
@@ -109,6 +112,7 @@ async def create_session(
             absolute_expires_at=absolute,
             user_agent=(user_agent or "")[:300] or None,
             ip_prefix=ip_prefix,
+            mfa_verified_at=now if mfa_verified else None,
         )
     )
     return token
@@ -141,7 +145,12 @@ async def revoke_all_sessions(db: AsyncSession, user_id: uuid.UUID, reason: str)
 
 
 async def load_principal(
-    db: AsyncSession, user: User, full_name: str, session_id: uuid.UUID
+    db: AsyncSession,
+    user: User,
+    full_name: str,
+    session_id: uuid.UUID,
+    *,
+    mfa_verified: bool = False,
 ) -> CurrentUser:
     roles = (
         await db.scalars(
@@ -167,6 +176,7 @@ async def load_principal(
         roles=frozenset(roles),
         permissions=frozenset(permissions),
         session_id=session_id,
+        mfa_verified=mfa_verified,
     )
 
 
@@ -204,4 +214,6 @@ async def resolve_session(db: AsyncSession, token: str, settings: Settings) -> C
                 idle_expires_at=func.least(func.now() + idle, AuthSession.absolute_expires_at),
             )
         )
-    return await load_principal(db, user, full_name, auth_session.id)
+    return await load_principal(
+        db, user, full_name, auth_session.id, mfa_verified=auth_session.mfa_verified_at is not None
+    )

@@ -96,3 +96,26 @@ export function messageFor(error: unknown): string {
   }
   return "We couldn't reach the server. Check your connection and try again.";
 }
+
+// --- Staff two-factor authentication (TOTP) ------------------------------------------------------
+export type MfaStatus = components["schemas"]["MfaStatusResponse"];
+export type MfaSetup = components["schemas"]["MfaSetupResponse"];
+
+export async function fetchMfaStatus(): Promise<MfaStatus> {
+  return unwrap(await browserApi.GET("/api/v1/me/mfa", { cache: "no-store" }));
+}
+
+export async function startMfaSetup(): Promise<MfaSetup> {
+  return unwrap(await browserApi.POST("/api/v1/me/mfa/totp/setup"));
+}
+
+/** Confirms the authenticator; returns the single-use recovery codes (shown once). */
+export async function confirmMfaSetup(code: string): Promise<string[]> {
+  const r = unwrap(await browserApi.POST("/api/v1/me/mfa/totp/confirm", { body: { code } }));
+  return r.recovery_codes;
+}
+
+/** An authenticator code or a recovery code; upgrades this session. */
+export async function verifyMfa(code: string): Promise<void> {
+  ensureOk(await browserApi.POST("/api/v1/me/mfa/verify", { body: { code } }));
+}

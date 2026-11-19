@@ -178,3 +178,17 @@ def test_production_registration_requires_and_accepts_approved_values() -> None:
     )
     assert s.registration_open
     assert not s.uses_policy_placeholders
+
+
+def test_totp_matches_rfc6238_and_rejects_bad_codes() -> None:
+    from app.modules.identity import mfa
+
+    secret = b"12345678901234567890"  # RFC 6238 Appendix B (SHA-1)
+    assert mfa.hotp(secret, 1) == "287082"  # T = 59 s, last 6 of 94287082
+    assert mfa.match_step(secret, "287082", now=59) == 1
+    assert mfa.match_step(secret, "287 082", now=59 + 30) == 1  # previous step still accepted
+    assert mfa.match_step(secret, "287082", now=59 + 90) is None  # outside the window
+    assert mfa.match_step(secret, "28708", now=59) is None
+    assert mfa.match_step(secret, "abcdef", now=59) is None
+    uri = mfa.otpauth_uri(secret, "a@b.test")
+    assert uri.startswith("otpauth://totp/IELTS%20MASTER%3Aa%40b.test?secret=GEZDGNBV")

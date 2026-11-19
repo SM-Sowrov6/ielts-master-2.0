@@ -163,7 +163,14 @@ function RegistrationFields({
         />
         <div className="space-y-3 pt-1">
           <CheckboxField control={form.control} name="accept_terms">
-            I agree to the Terms of Service and Privacy Policy
+            I agree to the{" "}
+            <Link href="/terms" target="_blank" className="underline">
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" target="_blank" className="underline">
+              Privacy Policy
+            </Link>
             {placeholder
               ? " (documents pending approval)"
               : ` (versions ${policy.terms_version} / ${policy.privacy_version})`}

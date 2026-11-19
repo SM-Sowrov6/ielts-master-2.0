@@ -8,8 +8,9 @@
    format (file signature) and that its SHA-256 matches. Only then is the asset `ready`;
    otherwise it is `failed` and the object is deleted.
 
-Not implemented yet (Phase 5b media worker): malware scanning, transcoding, duration extraction.
-Because of that, uploads are refused outside local/ci (`Settings.media_uploads_open`).
+Uploads are staff-only (`media.upload`, behind the staff 2FA gate). Not implemented yet (Phase 5b
+media worker): malware scanning, transcoding, duration extraction. Outside local/ci uploads are
+therefore off unless MEDIA_UPLOADS_ENABLED=true (`Settings.media_uploads_open`).
 Assets are immutable: replacing a section's audio means uploading a new asset.
 """
 
@@ -37,28 +38,46 @@ from app.modules.content.service import licence_for_test
 from app.shared.ids import new_id
 
 
+def _mpeg_frame(h: bytes) -> bool:
+    """A real MPEG audio frame header: sync, version/layer/bitrate/sample-rate not reserved."""
+    if len(h) < 4 or h[0] != 0xFF or h[1] & 0xE0 != 0xE0:
+        return False
+    version, layer = (h[1] >> 3) & 0b11, (h[1] >> 1) & 0b11
+    bitrate, rate = h[2] >> 4, (h[2] >> 2) & 0b11
+    return version != 0b01 and layer != 0b00 and bitrate not in (0b0000, 0b1111) and rate != 0b11
+
+
 def _mp3(head: bytes) -> bool:
-    return head.startswith(b"ID3") or (len(head) > 1 and head[0] == 0xFF and head[1] & 0xE0 == 0xE0)
+    if head.startswith(b"ID3"):
+        # ID3v2 header: version 2-4, flags' low nibble clear, synchsafe size bytes < 0x80.
+        return len(head) >= 10 and head[3] in (2, 3, 4) and all(b < 0x80 for b in head[6:10])
+    return _mpeg_frame(head)
 
 
 def _wav(head: bytes) -> bool:
-    return head[:4] == b"RIFF" and head[8:12] == b"WAVE"
+    return head[:4] == b"RIFF" and head[8:12] == b"WAVE" and head[12:16] in WAV_CHUNKS
+
+
+WAV_CHUNKS = {b"fmt ", b"JUNK", b"bext", b"LIST"}
+M4A_BRANDS = {b"M4A ", b"M4B ", b"mp42", b"mp41", b"isom", b"iso2", b"iso5", b"dash"}
+WEBP_CHUNKS = {b"VP8 ", b"VP8L", b"VP8X"}
 
 
 def _m4a(head: bytes) -> bool:
-    return head[4:8] == b"ftyp"
+    return head[4:8] == b"ftyp" and head[8:12] in M4A_BRANDS
 
 
 def _png(head: bytes) -> bool:
-    return head.startswith(b"\x89PNG\r\n\x1a\n")
+    return head.startswith(b"\x89PNG\r\n\x1a\n") and head[12:16] == b"IHDR"
 
 
 def _jpeg(head: bytes) -> bool:
-    return head.startswith(b"\xff\xd8\xff")
+    # SOI followed by a marker segment (APPn, DQT, SOF, DHT, COM...).
+    return head.startswith(b"\xff\xd8\xff") and len(head) > 3 and head[3] >= 0xC0
 
 
 def _webp(head: bytes) -> bool:
-    return head[:4] == b"RIFF" and head[8:12] == b"WEBP"
+    return head[:4] == b"RIFF" and head[8:12] == b"WEBP" and head[12:16] in WEBP_CHUNKS
 
 
 @dataclass(frozen=True)

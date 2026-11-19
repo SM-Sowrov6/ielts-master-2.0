@@ -8,6 +8,7 @@ dependencies = [
     "argon2-cffi>=25.1",
     "asyncpg>=0.32",            # SQLAlchemy async driver (postgresql+asyncpg)
     "boto3>=1.40",
+    "cryptography>=50",         # AES-GCM for stored staff 2FA secrets
     "fastapi>=0.163",
     "ielts-ai",                 # workspace library: evaluation workflows (ADR-003)
     "livekit-api>=1.2.2,<2",    # Speaking Room: room access tokens (server-side only)

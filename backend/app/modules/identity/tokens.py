@@ -41,13 +41,20 @@ class AuthKeys:
 
     csrf: bytes
     one_time_token: bytes
+    mfa_secret: bytes  # AES-256-GCM key for stored TOTP secrets
+    mfa_recovery: bytes  # HMAC key for recovery-code hashes
 
     @classmethod
     def from_secret(cls, secret: bytes) -> AuthKeys:
         def derive(label: str) -> bytes:
             return hmac.new(secret, f"ielts-master/{label}".encode(), hashlib.sha256).digest()
 
-        return cls(csrf=derive("csrf/v1"), one_time_token=derive("one-time-token/v1"))
+        return cls(
+            csrf=derive("csrf/v1"),
+            one_time_token=derive("one-time-token/v1"),
+            mfa_secret=derive("mfa-secret/v1"),
+            mfa_recovery=derive("mfa-recovery/v1"),
+        )
 
     @classmethod
     def from_settings(cls, settings: Settings) -> AuthKeys:

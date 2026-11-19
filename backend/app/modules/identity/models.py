@@ -10,6 +10,7 @@ from datetime import datetime
 from enum import StrEnum
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -137,6 +138,38 @@ class AuthSession(UUIDPrimaryKeyMixin, Base):
     user_agent: Mapped[str | None] = mapped_column(String(300))
     # Truncated network prefix only (/24 IPv4, /48 IPv6): data minimisation (SECURITY §11).
     ip_prefix: Mapped[str | None] = mapped_column(INET)
+    # Set on a session issued after a successful second factor (staff 2FA, migration 0013).
+    mfa_verified_at: Mapped[datetime | None]
+
+
+class UserMfaFactor(Base):
+    """One TOTP factor per user. The secret is AES-GCM encrypted (identity/mfa.py)."""
+
+    __tablename__ = "user_mfa_factors"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    secret_ciphertext: Mapped[bytes] = mapped_column(LargeBinary)
+    confirmed_at: Mapped[datetime | None]
+    last_used_step: Mapped[int | None] = mapped_column(BigInteger)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class UserMfaRecoveryCode(UUIDPrimaryKeyMixin, Base):
+    """Single-use recovery code, stored only as a keyed hash."""
+
+    __tablename__ = "user_mfa_recovery_codes"
+    __table_args__ = (Index("ix_user_mfa_recovery_codes_user_id", "user_id"),)
+
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    code_hash: Mapped[bytes] = mapped_column(LargeBinary(32), unique=True)
+    used_at: Mapped[datetime | None]
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
 
 class OneTimeToken(UUIDPrimaryKeyMixin, Base):

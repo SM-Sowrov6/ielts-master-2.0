@@ -80,3 +80,17 @@ class RateLimiterUnavailableError(DomainError):
     status_code = 503
     code = "rate_limiter_unavailable"
     title = "This service is temporarily unavailable. Please try again shortly."
+
+
+class MfaCodeInvalidError(DomainError):
+    status_code = 400
+    code = "mfa_code_invalid"
+    title = "That code is not valid. Check your authenticator app and try again."
+
+
+class MfaStateError(DomainError):
+    """Setup asked for when a confirmed factor exists, or verify asked for when none does."""
+
+    status_code = 409
+    code = "mfa_state"
+    title = "Two-factor authentication is not in the expected state. Reload the page."

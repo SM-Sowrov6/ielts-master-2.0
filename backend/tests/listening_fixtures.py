@@ -27,12 +27,13 @@ LISTENING_TYPES = {
 
 def wav_bytes(seed: int = 0, size: int = 4096) -> bytes:
     """A RIFF/WAVE container with filler samples (passes the signature check)."""
-    body = bytes((seed + i) % 251 for i in range(size))
+    fmt = b"fmt " + (16).to_bytes(4, "little") + bytes(16)
+    body = fmt + bytes((seed + i) % 251 for i in range(size))
     return b"RIFF" + (len(body) + 4).to_bytes(4, "little") + b"WAVE" + body
 
 
 def png_bytes() -> bytes:
-    return b"\x89PNG\r\n\x1a\n" + bytes(range(200))
+    return b"\x89PNG\r\n\x1a\n" + (13).to_bytes(4, "big") + b"IHDR" + bytes(range(200))
 
 
 def sha256(data: bytes) -> str:

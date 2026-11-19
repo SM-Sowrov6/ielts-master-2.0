@@ -7,6 +7,7 @@ from the delivered message text, exactly as a user would follow them.
 """
 
 import asyncio
+import base64
 import hashlib
 import re
 import uuid
@@ -29,12 +30,14 @@ from app.core.email import MemoryEmailSender, OutgoingEmail
 from app.core.outbox import OutboxMessage
 from app.main import create_app
 from app.modules.audit.models import AuditLog
+from app.modules.identity import mfa
 from app.modules.identity.models import (
     AuthSession,
     OneTimeToken,
     Role,
     User,
     UserConsent,
+    UserMfaFactor,
     UserRole,
 )
 from app.workers.outbox import MAX_ATTEMPTS, Dispatcher
@@ -843,10 +846,9 @@ async def test_cleanup_removes_spent_tokens_and_old_sessions(env: Env) -> None:
     await browser.close()
 
 
-async def test_staff_access_refused_while_two_factor_is_required(
-    identity_db: str, redis_url: str
-) -> None:
-    """Production always requires staff 2FA; until it exists, the staff gate refuses access."""
+async def test_staff_two_factor_enrolment_and_sign_in(identity_db: str, redis_url: str) -> None:
+    """Where staff 2FA is required: refused until enrolled, then TOTP / recovery codes upgrade
+    the session (new token), replayed codes and used recovery codes are rejected."""
     settings = _settings(identity_db, redis_url, staff_mfa_required=True)
     app = create_app(settings)
     sender = MemoryEmailSender()
@@ -859,6 +861,50 @@ async def test_staff_access_refused_while_two_factor_is_required(
     response = await browser.get("/admin/session")
     assert response.status_code == 403
     assert response.json()["code"] == "mfa_required"
+    status = (await browser.get("/me/mfa")).json()
+    assert status == {
+        "enrolled": False,
+        "verified": False,
+        "required": True,
+        "recovery_codes_left": 0,
+    }
+
+    # Enrol: secret shown once, confirmed with a real TOTP code -> recovery codes + new session.
+    setup = await browser.post("/me/mfa/totp/setup")
+    assert setup.status_code == 200
+    secret = base64.b32decode(setup.json()["secret"] + "=" * (-len(setup.json()["secret"]) % 8))
+    assert setup.json()["otpauth_uri"].startswith("otpauth://totp/IELTS%20MASTER")
+    old_session = browser.client.cookies.get(SESSION)
+    code = mfa.hotp(secret, mfa.current_step())
+    wrong = str((int(code) + 1) % 10**6).zfill(6)
+    rejected = await browser.post("/me/mfa/totp/confirm", {"code": wrong})
+    assert rejected.json()["code"] == "mfa_code_invalid"
+    confirmed = await browser.post("/me/mfa/totp/confirm", {"code": code})
+    assert confirmed.status_code == 200, confirmed.text
+    recovery = confirmed.json()["recovery_codes"]
+    assert len(recovery) == 10
+    assert browser.client.cookies.get(SESSION) != old_session
+    assert (await browser.get("/admin/session")).status_code == 200
+    assert (await browser.post("/me/mfa/totp/setup")).status_code == 409  # cannot re-enrol
+    rows = (await env.sql(select(UserMfaFactor.secret_ciphertext))).scalars().all()
+    assert len(rows) == 1
+    assert secret not in rows[0]  # stored encrypted
+    await browser.close()
+
+    # Next sign-in: password alone is not enough; the same TOTP step cannot be replayed.
+    browser = await _signed_in(env, email)
+    assert (await browser.get("/admin/session")).status_code == 403
+    assert (await browser.post("/me/mfa/verify", {"code": code})).json()["code"] == (
+        "mfa_code_invalid"
+    )
+    assert (await browser.post("/me/mfa/verify", {"code": recovery[0]})).status_code == 204
+    assert (await browser.get("/admin/session")).status_code == 200
+    assert (await browser.get("/me/mfa")).json()["recovery_codes_left"] == 9
+    await browser.close()
+
+    browser = await _signed_in(env, email)
+    assert (await browser.post("/me/mfa/verify", {"code": recovery[0]})).status_code == 400
+    assert (await browser.get("/admin/session")).status_code == 403
     await browser.close()
     await app.state.db_engine.dispose()
     await app.state.redis.aclose()

@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 
 import { AdminAccessDenied } from "@/components/admin/access-denied";
 import { AdminShell } from "@/components/admin/admin-shell";
+import { StaffTwoFactor } from "@/components/admin/staff-two-factor";
 import { getStaffAccess } from "@/lib/auth/server";
 import { signInUrl } from "@/lib/auth/redirect";
 
@@ -19,6 +20,8 @@ export const metadata: Metadata = { robots: { index: false, follow: false } };
 export default async function AdminLayout({ children }: { children: ReactNode }) {
   const access = await getStaffAccess();
   if (access.status === "signed_out") redirect(signInUrl("/admin"));
+  // Staff without a verified second factor on this session enrol or verify first.
+  if (access.status === "denied" && access.reason === "mfa_required") return <StaffTwoFactor />;
   if (access.status === "denied") return <AdminAccessDenied reason={access.reason} />;
   return <AdminShell user={access.user}>{children}</AdminShell>;
 }

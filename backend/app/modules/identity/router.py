@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db_session
 from app.core.errors import PROBLEM_MEDIA_TYPE
-from app.modules.identity import service
+from app.modules.identity import mfa, service
 from app.modules.identity.csrf import issue_token, set_csrf_cookie
 from app.modules.identity.deps import (
     auth_runtime,
@@ -28,6 +28,10 @@ from app.modules.identity.schemas import (
     EmailRequest,
     LoginRequest,
     MeResponse,
+    MfaCodeRequest,
+    MfaEnrolledResponse,
+    MfaSetupResponse,
+    MfaStatusResponse,
     RegisterRequest,
     RegistrationPolicyResponse,
     ResetPasswordRequest,
@@ -241,3 +245,61 @@ async def admin_session(
     user: Annotated[CurrentUser, Depends(require_staff)],
 ) -> MeResponse:
     return _me(user)
+
+
+# --- Staff two-factor authentication (TOTP) ------------------------------------------------------
+def _mfa_required(rt: AuthRuntime, user: CurrentUser) -> bool:
+    return rt.settings.staff_mfa_required_effective and user.has("admin.access")
+
+
+@router.get("/me/mfa", response_model=MfaStatusResponse, responses=_problem((401, "Not signed in")))
+async def mfa_status(db: Db, rt: Runtime, user: User) -> MfaStatusResponse:
+    st = await mfa.status(db, user, required=_mfa_required(rt, user))
+    return MfaStatusResponse(
+        enrolled=st.enrolled,
+        verified=st.verified,
+        required=st.required,
+        recovery_codes_left=st.recovery_codes_left,
+    )
+
+
+@router.post(
+    "/me/mfa/totp/setup",
+    response_model=MfaSetupResponse,
+    summary="Start authenticator setup (returns the secret once)",
+    responses=_problem((401, "Not signed in"), (409, "Already enrolled")),
+)
+async def mfa_setup(db: Db, rt: Runtime, meta: Meta, user: User) -> MfaSetupResponse:
+    info = await mfa.begin_setup(db, rt, meta, user)
+    return MfaSetupResponse(secret=info.secret, otpauth_uri=info.otpauth_uri)
+
+
+@router.post(
+    "/me/mfa/totp/confirm",
+    response_model=MfaEnrolledResponse,
+    summary="Confirm the authenticator; returns single-use recovery codes and upgrades the session",
+    responses=_problem(
+        (400, "Code invalid"), (401, "Not signed in"), (409, "No pending setup"), (429, "Too many")
+    ),
+)
+async def mfa_confirm(
+    body: MfaCodeRequest, response: Response, db: Db, rt: Runtime, meta: Meta, user: User
+) -> MfaEnrolledResponse:
+    token, codes = await mfa.confirm_setup(db, rt, meta, user, body.code)
+    _start_session(response, rt, token)
+    return MfaEnrolledResponse(recovery_codes=codes)
+
+
+@router.post(
+    "/me/mfa/verify",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Pass the second factor (authenticator or recovery code); upgrades the session",
+    responses=_problem(
+        (400, "Code invalid"), (401, "Not signed in"), (409, "Not enrolled"), (429, "Too many")
+    ),
+)
+async def mfa_verify(
+    body: MfaCodeRequest, response: Response, db: Db, rt: Runtime, meta: Meta, user: User
+) -> None:
+    token = await mfa.verify(db, rt, meta, user, body.code)
+    _start_session(response, rt, token)

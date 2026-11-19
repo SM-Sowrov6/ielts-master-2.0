@@ -106,8 +106,10 @@ class Settings(DatabaseSettings):
     s3_secret_access_key: SecretStr | None = None
     s3_bucket: str = Field(default="ielts-media", min_length=3, max_length=63)
     s3_region: str = "us-east-1"
-    # Malware scanning and transcoding (Phase 5b worker) do not exist yet, so uploads are refused
-    # outside local/ci; enabling them there is rejected at startup.
+    # Content uploads (Listening audio, images) are staff-only (`media.upload` + staff 2FA) and
+    # verified server-side (size, SHA-256, strict file signature). Malware scanning and transcoding
+    # (Phase 5b worker) do not exist yet, so outside local/ci they stay off unless explicitly
+    # enabled (decision 2026-11-20: staff-only uploads with strict checks are acceptable).
     media_uploads_enabled: bool | None = None
     media_max_audio_bytes: int = Field(default=200 * 1024 * 1024, ge=1024, le=2 * 1024**3)
     media_max_image_bytes: int = Field(default=10 * 1024 * 1024, ge=1024, le=100 * 1024 * 1024)
@@ -204,11 +206,6 @@ class Settings(DatabaseSettings):
         for value in (self.legal_terms_version, self.legal_privacy_version):
             if value is not None and DEV_PLACEHOLDER in value.lower():
                 raise ValueError("Development legal placeholders are not allowed outside local/ci")
-        if self.media_uploads_enabled:
-            raise ValueError(
-                "MEDIA_UPLOADS_ENABLED is only allowed in local/ci until uploaded media is "
-                "malware-scanned (Phase 5b media worker)"
-            )
         if self.registration_open and self.uses_policy_placeholders:
             raise ValueError(
                 "Registration requires an approved age policy and legal versions outside local/ci:"

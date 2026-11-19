@@ -74,10 +74,10 @@ async def require_staff(
     request: Request,
     user: Annotated[CurrentUser, Depends(require_permission("admin.access"))],
 ) -> CurrentUser:
-    """Staff area gate. Staff two-factor authentication is a production prerequisite: until the
-    2FA stage is implemented, staff access is refused wherever STAFF_MFA_REQUIRED is in effect
-    (always in production; off by default only in local/ci)."""
-    if auth_runtime(request).settings.staff_mfa_required_effective:
+    """Staff area gate. Wherever STAFF_MFA_REQUIRED is in effect (always in production; off by
+    default only in local/ci) the session must have passed the second factor (identity/mfa.py);
+    otherwise 403 `mfa_required` sends the client to enrol or verify."""
+    if auth_runtime(request).settings.staff_mfa_required_effective and not user.mfa_verified:
         raise MfaRequiredError
     return user
 

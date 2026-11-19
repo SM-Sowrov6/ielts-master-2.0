@@ -257,11 +257,10 @@ export const footerNav: readonly { label: string; items: readonly FooterItem[] }
   },
   {
     label: "Legal",
-    // Legal documents are not approved yet (D-17): listed, but not linked or published.
+    // Drafts published for review (D-17); cookie use is covered in the Privacy Policy.
     items: [
-      { label: "Privacy Policy", status: "pending-approval" },
-      { label: "Terms of Service", status: "pending-approval" },
-      { label: "Cookie Policy", status: "pending-approval" },
+      { href: "/privacy", label: "Privacy Policy" },
+      { href: "/terms", label: "Terms of Service" },
     ],
   },
 ];

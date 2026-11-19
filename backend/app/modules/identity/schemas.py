@@ -113,3 +113,23 @@ class RegistrationPolicyResponse(BaseModel):
     terms_version: str
     privacy_version: str
     development_placeholders: bool
+
+
+class MfaStatusResponse(BaseModel):
+    enrolled: bool  # a confirmed authenticator exists
+    verified: bool  # this session passed the second factor
+    required: bool  # the staff area demands it for this account
+    recovery_codes_left: int
+
+
+class MfaSetupResponse(BaseModel):
+    secret: str  # base32, for manual entry
+    otpauth_uri: str  # for the QR code
+
+
+class MfaCodeRequest(BaseModel):
+    code: str = Field(min_length=6, max_length=20)
+
+
+class MfaEnrolledResponse(BaseModel):
+    recovery_codes: list[str]  # shown once; store them safely

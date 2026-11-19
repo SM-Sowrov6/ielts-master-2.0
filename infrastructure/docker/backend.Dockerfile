@@ -31,6 +31,8 @@ COPY --from=build /opt/venv /opt/venv
 WORKDIR /app
 COPY --from=build /src/backend/alembic.ini /app/alembic.ini
 COPY --from=build /src/backend/migrations /app/migrations
+# Staff provisioning CLI (create-staff, reset-mfa ...): docker compose exec backend python /app/admin_cli.py
+COPY scripts/admin_cli.py /app/admin_cli.py
 ENV PATH="/opt/venv/bin:${PATH}" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1

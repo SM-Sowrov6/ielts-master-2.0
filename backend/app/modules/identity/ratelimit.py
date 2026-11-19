@@ -33,6 +33,8 @@ RESEND_IP = Rule("resend:ip", 5, 60)
 RESET_IP = Rule("reset:ip", 5, 60)
 VERIFY_IP = Rule("verify:ip", 10, 60)
 PASSWORD_CHANGE_USER = Rule("password-change:user", 10, 3600)
+# Second-factor attempts per user (6-digit codes: keep guessing far below 1e6).
+MFA_USER = Rule("mfa:user", 5, 300)
 # Emails to one address (registration notices, verification, reset): prevents mail-bombing a
 # victim. Exceeding it is silent, so it never reveals whether an account exists.
 EMAIL_ACCOUNT = Rule("email:account", 5, 3600)

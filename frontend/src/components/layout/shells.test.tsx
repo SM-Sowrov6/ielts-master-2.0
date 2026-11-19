@@ -110,10 +110,16 @@ describe("SiteShell and FocusShell", () => {
         name: "Study Library (coming soon)",
       }),
     ).toHaveAttribute("href", "/library");
-    // Pages that do not exist (and unapproved legal documents) are never links.
+    // Pages that do not exist are never links; the published legal documents are.
     const legal = screen.getByRole("navigation", { name: "Legal" });
-    expect(within(legal).queryAllByRole("link")).toHaveLength(0);
-    expect(legal).toHaveTextContent("Privacy PolicyPending approval");
+    expect(within(legal).getByRole("link", { name: "Privacy Policy" })).toHaveAttribute(
+      "href",
+      "/privacy",
+    );
+    expect(within(legal).getByRole("link", { name: "Terms of Service" })).toHaveAttribute(
+      "href",
+      "/terms",
+    );
     expect(
       within(screen.getByRole("navigation", { name: "Company" })).getAllByRole("link"),
     ).toHaveLength(1);

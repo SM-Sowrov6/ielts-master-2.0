@@ -9,6 +9,8 @@ Commands
   grant-role EMAIL --role ROLE        give an existing, active account a staff role
   revoke-role EMAIL --role ROLE [--allow-no-super-admin]
   list-staff                          staff accounts and their roles
+  reset-mfa EMAIL                     remove the account's authenticator and recovery codes
+                                      (lost device); it enrols again at next staff sign-in
 
 Roles: super_admin, admin, content_manager, reviewer.
 
@@ -21,8 +23,9 @@ Every command is idempotent and audited, and every role change revokes the accou
 sessions (the person signs in again). Run it where the deployment's DATABASE_URL, REDIS_URL and
 AUTH_SECRET_KEY are configured: the full application settings are validated first.
 
-Note: staff sign-in is refused wherever STAFF_MFA_REQUIRED is in effect (always in production)
-until staff two-factor authentication is implemented; provisioning itself works everywhere.
+Staff two-factor authentication (TOTP) is enforced wherever STAFF_MFA_REQUIRED is in effect
+(always in production): on first staff sign-in the person scans a QR code, then enters a code on
+every sign-in. `reset-mfa` is the recovery path when both the device and recovery codes are lost.
 """
 
 import argparse
@@ -32,10 +35,14 @@ import os
 import sys
 from collections.abc import Awaitable, Callable
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings
 from app.core.database import create_engine, create_session_factory
+from app.modules.audit import api as audit
+from app.modules.identity import mfa
+from app.modules.identity.models import User
 from app.modules.identity.passwords import PasswordService
 from app.modules.identity.provisioning import (
     STAFF_ROLES,
@@ -111,6 +118,8 @@ def build_parser() -> argparse.ArgumentParser:
     revoke.add_argument("--role", choices=STAFF_ROLES, required=True)
     revoke.add_argument("--allow-no-super-admin", action="store_true")
     sub.add_parser("list-staff")
+    reset = sub.add_parser("reset-mfa", allow_abbrev=False)
+    reset.add_argument("email")
     return parser
 
 
@@ -155,6 +164,27 @@ async def execute(args: argparse.Namespace, settings: Settings) -> str:
             return describe(change, "revoked")
 
         return await _run(settings, revoke)
+
+    if args.command == "reset-mfa":
+
+        async def reset_mfa(db: AsyncSession) -> str:
+            user = await db.scalar(select(User).where(User.email == args.email))
+            if user is None:
+                raise ProvisioningError(f"No account for {args.email}.")
+            await mfa.reset(db, user.id)
+            await audit.record(
+                db,
+                actor_id=None,
+                action="identity.mfa.reset_by_cli",
+                entity_type="user",
+                entity_id=user.id,
+                changes=None,
+                request_id=None,
+                ip=None,
+            )
+            return f"Two-factor reset for {args.email}; all sessions revoked."
+
+        return await _run(settings, reset_mfa)
 
     async def show(db: AsyncSession) -> str:
         members = await list_staff(db)

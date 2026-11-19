@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 REQUIRED_EXTENSIONS = {"citext", "pg_trgm", "vector"}
-HEAD = "0012"
+HEAD = "0013"
 
 
 def _config(database_url: str | None = None) -> Config:

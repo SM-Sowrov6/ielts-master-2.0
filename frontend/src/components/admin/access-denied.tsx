@@ -14,7 +14,7 @@ const COPY = {
   mfa_required: {
     title: "Two-factor authentication required",
     description:
-      "Staff access in this environment requires two-factor authentication, which is not available yet. Your account has not been granted access to the admin console.",
+      "Staff access in this environment requires two-factor authentication. Reload the page to set it up or enter your code.",
   },
 } as const;
 
