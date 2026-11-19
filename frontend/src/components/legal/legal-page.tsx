@@ -7,8 +7,8 @@ import type { ReactNode } from "react";
  */
 export const LEGAL_VERSION = "2026-11-20";
 export const LEGAL_APPROVED = true;
-/** Contact address shown in the documents. Replace with the real support mailbox on approval. */
-export const LEGAL_CONTACT = "support@ieltsmaster.example";
+/** Contact address shown in the documents (Cloudflare Email Routing → owner's inbox). */
+export const LEGAL_CONTACT = "support@ieltsmaster.site";
 
 export function LegalPage({ title, children }: { title: string; children: ReactNode }) {
   return (
