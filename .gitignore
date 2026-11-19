@@ -42,3 +42,6 @@ Thumbs.db
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# --- Deployment (server-only files) ---
+infrastructure/deploy/backups/

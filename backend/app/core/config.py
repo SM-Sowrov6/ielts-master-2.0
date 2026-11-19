@@ -25,6 +25,8 @@ _SETTINGS_CONFIG = SettingsConfigDict(
     case_sensitive=False,
     extra="ignore",
     frozen=True,
+    # An empty variable (e.g. `STAFF_MFA_REQUIRED=` from a Compose default) means "not set".
+    env_ignore_empty=True,
 )
 
 
