@@ -3,6 +3,9 @@
 #   docker compose -f infrastructure/deploy/compose.prod.yml -f infrastructure/deploy/compose.tunnel.yml \
 #     --env-file infrastructure/deploy/.env up -d --build
 # One-time tunnel setup: infrastructure/deploy/tunnel-setup.sh
+# Media: MinIO on this machine instead of R2 (no card needed). In .env set
+#   S3_ENDPOINT_URL=http://minio:9000  S3_PUBLIC_ENDPOINT_URL=https://media.<domain>  S3_REGION=us-east-1
+# and any S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY (they become the MinIO root credentials).
 
 services:
   caddy:
@@ -21,3 +24,16 @@ services:
     depends_on:
       - caddy
     restart: unless-stopped
+
+  minio:
+    image: cgr.dev/chainguard/minio@sha256:7618b82bba99aadd77fcf59eb6cfd89b4b8b8e01ac796c474d57a1c1abf17e79
+    command: ["server", "/data"]
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY_ID}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_ACCESS_KEY}
+    volumes:
+      - minio-data:/data
+    restart: unless-stopped
+
+volumes:
+  minio-data:
