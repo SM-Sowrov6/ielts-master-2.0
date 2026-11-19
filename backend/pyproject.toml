@@ -1,0 +1,30 @@
+[project]
+name = "ielts-backend"
+version = "0.1.0"
+description = "IELTS MASTER 2.0 backend — FastAPI modular monolith (API + future Celery workers)"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "alembic>=1.17",
+    "argon2-cffi>=25.1",
+    "asyncpg>=0.32",            # SQLAlchemy async driver (postgresql+asyncpg)
+    "boto3>=1.40",
+    "fastapi>=0.163",
+    "ielts-ai",                 # workspace library: evaluation workflows (ADR-003)
+    "livekit-api>=1.2.2,<2",    # Speaking Room: room access tokens (server-side only)
+    "pydantic-settings>=2.12",
+    "redis>=8.1",               # readiness check; cache/rate limit/broker later
+    "sqlalchemy[asyncio]>=2.0,<2.2",
+    "structlog>=26.1",
+    "uvicorn>=0.54",
+]
+
+[build-system]
+requires = ["uv_build>=0.13,<0.14"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "app"
+module-root = ""
+
+[tool.uv.sources]
+ielts-ai = { workspace = true }

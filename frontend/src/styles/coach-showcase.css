@@ -1,0 +1,821 @@
+/*
+ * AI Coach section: a free-floating CSS-3D coaching workspace — the IELTS MASTER coach robot,
+ * a floating coach window (chat + sample feedback card) and recommendation cards at different
+ * depths. One timeline in components/marketing/coach-demo.tsx sets `data-mood` and the content
+ * flags; CSS does the rest. Robot and window enter on scroll (view timelines where supported).
+ */
+
+@layer components {
+  .cx-section {
+    --cx-blue: #2563eb;
+    --cx-blue-light: #60a5fa;
+    --cx-emerald: #10b981;
+    --cx-emerald-light: #6ee7b7;
+    --cx-shell-shade: #9fb3da;
+  }
+
+  .cx-ambient {
+    background:
+      radial-gradient(
+        34% 46% at 22% 42%,
+        color-mix(in oklch, var(--primary) 18%, transparent),
+        transparent 72%
+      ),
+      radial-gradient(
+        30% 40% at 82% 62%,
+        color-mix(in oklch, var(--brand-accent) 14%, transparent),
+        transparent 72%
+      );
+  }
+  .cx-demo {
+    position: relative;
+    perspective: 2000px;
+    perspective-origin: 50% 25%;
+  }
+  .cx-scene {
+    position: relative;
+    transform-style: preserve-3d;
+    transform: rotateX(calc(var(--tilt-y, 0) * -2deg)) rotateY(calc(var(--tilt-x, 0) * 3deg));
+    transition: transform 1000ms cubic-bezier(0.22, 0.8, 0.26, 1);
+  }
+
+  /* Layout ---------------------------------------------------------------------------------------- */
+  .cx-layout {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    transform-style: preserve-3d;
+  }
+  .cx-robot-col {
+    position: relative;
+    z-index: 2;
+    margin-bottom: -1.5rem;
+  }
+  .cx-window-wrap {
+    position: relative;
+    width: 100%;
+    transform-style: preserve-3d;
+  }
+  @media (min-width: 64rem) {
+    .cx-layout {
+      display: grid;
+      grid-template-columns: 10.5rem minmax(0, 1fr);
+      align-items: center;
+      gap: 0;
+    }
+    .cx-robot-col {
+      margin: 0 -1.75rem 0 0;
+      transform: translateZ(90px);
+    }
+    .cx-window-wrap {
+      transform: rotateY(-5deg);
+      padding-bottom: 3rem;
+    }
+  }
+
+  /* The coach window ---------------------------------------------------------------------------- */
+  .cx-window {
+    position: relative;
+    border: 1px solid var(--border);
+    border-radius: 1.5rem;
+    background: linear-gradient(
+      170deg,
+      color-mix(in oklch, var(--card), var(--primary) 3%),
+      var(--card) 40%
+    );
+    color: var(--card-foreground);
+    transform-style: preserve-3d;
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 45%),
+      0 50px 90px -40px color-mix(in oklch, var(--primary) 45%, transparent),
+      0 24px 44px -28px rgb(15 23 42 / 35%);
+  }
+  .cx-online {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+    background: var(--cx-emerald);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--cx-emerald) 20%, transparent);
+  }
+  .cx-body {
+    display: grid;
+    gap: 1rem;
+    padding: 1rem;
+    transform-style: preserve-3d;
+  }
+  @media (min-width: 48rem) {
+    .cx-body {
+      grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+      align-items: start;
+      padding: 1.25rem;
+    }
+  }
+  .cx-chat {
+    display: flex;
+    min-height: 19rem; /* reserved, so nothing shifts while messages arrive */
+    flex-direction: column;
+    gap: 0.9rem;
+    transition: opacity 700ms ease;
+  }
+  .cx-msg {
+    display: flex;
+    max-width: 92%;
+    flex-direction: column;
+    gap: 0.3rem;
+    animation: cx-pop 450ms cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+  }
+  .cx-msg[data-from="student"] {
+    align-self: flex-end;
+    align-items: flex-end;
+  }
+  .cx-msg[data-from="coach"] {
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 0.6rem;
+  }
+  .cx-bubble {
+    border-radius: 1.1rem;
+    padding: 0.65rem 0.9rem;
+    font-size: 0.9375rem;
+    line-height: 1.55;
+  }
+  .cx-msg[data-from="student"] .cx-bubble {
+    border-bottom-right-radius: 0.3rem;
+    color: #fff;
+    background: linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--cx-blue), white 12%),
+      var(--cx-blue)
+    );
+    box-shadow: 0 10px 22px -12px color-mix(in oklch, var(--cx-blue) 70%, transparent);
+  }
+  .cx-msg[data-from="coach"] .cx-bubble {
+    border: 1px solid color-mix(in oklch, var(--cx-blue) 16%, var(--border));
+    border-top-left-radius: 0.3rem;
+    background: color-mix(in oklch, var(--cx-blue) 6%, var(--card));
+  }
+  .cx-time {
+    display: block;
+    margin-top: 0.3rem;
+    font-size: 0.6875rem;
+    color: var(--muted-foreground);
+  }
+  .cx-typing {
+    display: flex;
+    gap: 0.3rem;
+    padding: 0.85rem 1rem !important;
+  }
+  .cx-typing i {
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+    background: var(--cx-blue);
+    opacity: 0.4;
+  }
+
+  /* Coach avatar badge: a miniature of the robot's face. */
+  .cx-badge {
+    display: grid;
+    width: 2rem;
+    height: 2rem;
+    flex-shrink: 0;
+    place-items: center;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--cx-blue-light), var(--cx-blue));
+    box-shadow: 0 6px 14px -6px color-mix(in oklch, var(--cx-blue) 70%, transparent);
+  }
+  .cx-badge-sm {
+    width: 1.8rem;
+    height: 1.8rem;
+  }
+  .cx-minibot {
+    display: grid;
+    width: 1.3rem;
+    height: 1.12rem;
+    place-items: center;
+    border-radius: 46% 46% 40% 40%;
+    background: radial-gradient(120% 120% at 32% 22%, #fff, #dfe8fb 50%, #9fb3da);
+  }
+  .cx-minibot-visor {
+    display: flex;
+    width: 76%;
+    height: 56%;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    border-radius: 0.3rem;
+    background: #0b1733;
+  }
+  .cx-minibot-visor i {
+    width: 0.16rem;
+    height: 0.22rem;
+    border-radius: 0.1rem;
+    background: var(--cx-emerald-light);
+    box-shadow: 0 0 0.2rem var(--cx-emerald);
+  }
+
+  /* Sample feedback card (lifted off the window in 3D) ------------------------------------------- */
+  .cx-feedback {
+    --edge: color-mix(in oklch, var(--card), var(--foreground) 12%);
+    border: 1px solid var(--border);
+    border-radius: 1.1rem;
+    padding: 1rem;
+    background: var(--card);
+    opacity: 0;
+    transform: translateY(12px) rotateX(-12deg);
+    transition:
+      opacity 600ms ease,
+      transform 800ms cubic-bezier(0.2, 0.9, 0.25, 1.1);
+    box-shadow:
+      0 1px 0 var(--edge),
+      0 2px 0 var(--edge),
+      0 3px 0 color-mix(in oklch, var(--edge), var(--foreground) 8%),
+      0 30px 50px -24px color-mix(in oklch, var(--primary) 40%, transparent),
+      0 14px 26px -18px rgb(15 23 42 / 30%);
+  }
+  .cx-feedback[data-show="true"] {
+    opacity: 1;
+    transform: none;
+  }
+  @media (min-width: 48rem) {
+    .cx-feedback[data-show="true"] {
+      transform: translateZ(50px);
+    }
+  }
+  @media (min-width: 64rem) {
+    .cx-feedback {
+      margin-right: -1.5rem;
+    }
+    .cx-feedback[data-show="true"] {
+      transform: translateZ(70px) rotateY(-4deg);
+    }
+  }
+  .cx-status {
+    border-radius: 999px;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.6875rem;
+    font-weight: 600;
+  }
+  .cx-section [data-tone="amber"] {
+    --k: var(--warning);
+  }
+  .cx-section [data-tone="emerald"] {
+    --k: var(--success);
+  }
+  .cx-section [data-tone="blue"] {
+    --k: var(--primary);
+  }
+  .cx-status {
+    color: var(--k);
+    background: color-mix(in oklch, var(--k) 12%, transparent);
+  }
+  .cx-seg {
+    position: relative;
+    height: 0.4rem;
+    overflow: hidden;
+    border-radius: 999px;
+    background: var(--muted);
+  }
+  .cx-seg-on::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: var(--k);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 450ms ease;
+    transition-delay: var(--d, 0ms);
+  }
+  .cx-feedback[data-show="true"] .cx-seg-on::after {
+    transform: scaleX(1);
+  }
+
+  /* Recommendation cards (float over the window's lower edge) ------------------------------------ */
+  .cx-recs {
+    display: grid;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    transform-style: preserve-3d;
+  }
+  @media (min-width: 40rem) {
+    .cx-recs {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  @media (min-width: 64rem) {
+    .cx-recs {
+      position: absolute;
+      right: 0.5rem;
+      bottom: -1.25rem;
+      left: 0.5rem;
+      margin: 0;
+      gap: 0.85rem;
+    }
+  }
+  .cx-rec {
+    --edge: color-mix(in oklch, var(--card), var(--foreground) 12%);
+    --icon-size: 2.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.85rem;
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    padding: 0.75rem 0.9rem;
+    background: color-mix(in oklch, var(--card) 96%, var(--primary));
+    opacity: 0;
+    transform: translateY(16px);
+    transition:
+      opacity 500ms ease,
+      transform 700ms cubic-bezier(0.2, 0.9, 0.25, 1.15);
+    box-shadow:
+      0 1px 0 var(--edge),
+      0 2px 0 var(--edge),
+      0 3px 0 color-mix(in oklch, var(--edge), var(--foreground) 8%),
+      0 24px 40px -20px color-mix(in oklch, var(--primary) 38%, transparent),
+      0 10px 20px -14px rgb(15 23 42 / 28%);
+  }
+  .cx-rec .icon3d {
+    --icon-size: 2.5rem;
+  }
+  .cx-rec[data-show="true"] {
+    opacity: 1;
+    transform: none;
+  }
+  @media (min-width: 64rem) {
+    .cx-rec[data-show="true"] {
+      transform: translateZ(110px);
+    }
+    .cx-rec:nth-child(2)[data-show="true"] {
+      transform: translateZ(130px) translateY(-0.6rem);
+    }
+  }
+  .cx-demo[data-fading="true"] :is(.cx-chat, .cx-feedback, .cx-rec) {
+    opacity: 0;
+  }
+
+  /* Coach robot ------------------------------------------------------------------------------------ */
+  .cx-robot {
+    position: relative;
+    width: 15em;
+    height: 22em;
+    font-size: 9px;
+  }
+  @media (min-width: 40rem) {
+    .cx-robot {
+      font-size: 11px;
+    }
+  }
+  @media (min-width: 64rem) {
+    .cx-robot {
+      font-size: clamp(10px, 0.8vw, 12.5px);
+    }
+  }
+  .cx-robot span {
+    position: absolute;
+    display: block;
+  }
+  .cx-glow {
+    inset: 8% -10% 12%;
+    border-radius: 50%;
+    background: radial-gradient(
+      closest-side,
+      color-mix(in oklch, var(--primary) 22%, transparent),
+      transparent
+    );
+  }
+  .cx-shadow {
+    bottom: 0;
+    left: 50%;
+    width: 12em;
+    height: 2.2em;
+    margin-left: -6em;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgb(15 23 42 / 32%), transparent);
+  }
+  .cx-figure {
+    inset: 0;
+  }
+  .cx-torso {
+    z-index: 2;
+    bottom: 1.4em;
+    left: 50%;
+    width: 10em;
+    height: 7.2em;
+    margin-left: -5em;
+    border-radius: 5em 5em 2.4em 2.4em / 4em 4em 2.4em 2.4em;
+    background: radial-gradient(120% 100% at 35% 15%, #fff, #dfe8fb 50%, #96abd6);
+    box-shadow:
+      inset 0 -0.5em 1em rgb(30 58 138 / 26%),
+      0 1em 1.6em -0.7em rgb(15 23 42 / 38%);
+    transform-origin: 50% 100%;
+  }
+  .cx-collar {
+    top: 0.45em;
+    left: 50%;
+    width: 4.2em;
+    height: 0.45em;
+    margin-left: -2.1em;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--cx-emerald), var(--cx-blue-light));
+    box-shadow: 0 0 0.7em rgb(16 185 129 / 55%);
+  }
+  .cx-core {
+    top: 2.3em;
+    left: 50%;
+    width: 1.7em;
+    height: 1.7em;
+    margin-left: -0.85em;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #bfdbfe, var(--cx-blue));
+    box-shadow: 0 0 1em rgb(37 99 235 / 60%);
+  }
+  .cx-arm {
+    z-index: 1;
+    bottom: 3.6em;
+    width: 1.75em;
+    height: 5.4em;
+    border-radius: 0.9em;
+    background: linear-gradient(90deg, var(--cx-shell-shade), #fff 50%, var(--cx-shell-shade));
+    transform-origin: 50% 0.8em;
+    transition: rotate 700ms cubic-bezier(0.3, 1.3, 0.4, 1);
+  }
+  .cx-arm-l {
+    left: 1.7em;
+    rotate: 16deg;
+  }
+  .cx-arm-r {
+    right: 1.7em;
+    rotate: -16deg;
+  }
+  .cx-hand {
+    bottom: -0.5em;
+    left: 50%;
+    width: 2em;
+    height: 2em;
+    margin-left: -1em;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #93c5fd, var(--cx-blue) 60%, #1d3fae);
+  }
+  .cx-hand::after {
+    content: "";
+    position: absolute;
+    left: 1.15em;
+    bottom: 1.2em;
+    width: 0.65em;
+    height: 1.2em;
+    border-radius: 0.35em;
+    background: var(--cx-blue);
+    opacity: 0;
+    transition: opacity 300ms ease 300ms;
+  }
+  /* Talking: gestures towards the chat; done: thumbs up. */
+  .cx-demo[data-mood="talking"] .cx-arm-r {
+    rotate: -62deg;
+  }
+  .cx-demo[data-mood="done"] .cx-arm-r {
+    rotate: -160deg;
+  }
+  .cx-demo[data-mood="done"] .cx-arm-r .cx-hand::after {
+    opacity: 1;
+  }
+  .cx-neck {
+    bottom: 8.3em;
+    left: 50%;
+    width: 2.6em;
+    height: 1.5em;
+    margin-left: -1.3em;
+    border-radius: 0.6em;
+    background: linear-gradient(90deg, #8ea0c8, #e2e9f7 50%, #8ea0c8);
+  }
+  .cx-nod {
+    z-index: 3;
+    bottom: 9.2em;
+    left: 50%;
+    width: 9.6em;
+    height: 8.6em;
+    margin-left: -4.8em;
+    transform-origin: 50% 95%;
+  }
+  .cx-head {
+    inset: 0;
+    border-radius: 46% 46% 42% 42%;
+    background: radial-gradient(120% 120% at 32% 22%, #fff 0%, #e6edfb 45%, #9fb3da 100%);
+    box-shadow:
+      inset 0 -0.55em 1em rgb(30 58 138 / 26%),
+      0 1em 1.6em -0.8em rgb(15 23 42 / 45%);
+    transform-origin: 50% 90%;
+    transition: transform 800ms cubic-bezier(0.3, 0.8, 0.3, 1);
+  }
+  /* Turns to the chat (on its right) to read the student's message; tilts while thinking. */
+  .cx-demo[data-mood="listening"] .cx-head {
+    transform: rotateY(22deg) rotateZ(-4deg);
+  }
+  .cx-demo[data-mood="thinking"] .cx-head {
+    transform: rotateY(10deg) rotateZ(7deg);
+  }
+  .cx-demo[data-mood="talking"] .cx-head {
+    transform: rotateY(14deg);
+  }
+  .cx-antenna {
+    top: -1.6em;
+    left: 50%;
+    width: 0.26em;
+    height: 1.7em;
+    margin-left: -0.13em;
+    border-radius: 0.2em;
+    background: var(--cx-shell-shade);
+  }
+  .cx-antenna::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: -0.5em;
+    width: 0.95em;
+    height: 0.95em;
+    margin-left: -0.475em;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #a7f3d0, var(--cx-emerald));
+    box-shadow: 0 0 0.8em rgb(16 185 129 / 60%);
+  }
+  .cx-ear {
+    top: 3em;
+    width: 1.4em;
+    height: 2.7em;
+    border-radius: 0.7em;
+    background: linear-gradient(to bottom, #3b82f6, #1d3fae);
+  }
+  .cx-ear-l {
+    left: -0.6em;
+  }
+  .cx-ear-r {
+    right: -0.6em;
+  }
+  .cx-visor {
+    inset: 2em 1.05em 1.7em;
+    overflow: hidden;
+    border-radius: 2.6em / 2.4em;
+    background: linear-gradient(170deg, #1b2f61, #070f24 70%);
+    box-shadow: inset 0 0.2em 0.4em rgb(0 0 0 / 55%);
+  }
+  .cx-visor::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(150deg, rgb(255 255 255 / 22%), transparent 42%);
+  }
+  .cx-eyes {
+    top: 24%;
+    left: 50%;
+    display: flex !important;
+    gap: 1.6em;
+    translate: -50% 0;
+    transition: translate 500ms ease;
+  }
+  .cx-eye {
+    position: relative !important;
+    width: 1.25em;
+    height: 1.55em;
+    border-radius: 0.65em;
+    background: linear-gradient(to bottom, #a7f3d0, var(--cx-emerald));
+    box-shadow: 0 0 0.7em rgb(16 185 129 / 70%);
+    transition:
+      height 300ms ease,
+      border-radius 300ms ease;
+  }
+  .cx-demo[data-mood="listening"] .cx-eyes,
+  .cx-demo[data-mood="talking"] .cx-eyes {
+    translate: calc(-50% + 0.55em) 0.1em;
+  }
+  .cx-demo[data-mood="thinking"] .cx-eyes {
+    translate: calc(-50% + 0.4em) -0.3em;
+  }
+  .cx-demo[data-mood="done"] .cx-eye {
+    height: 0.7em;
+    border-radius: 0.7em 0.7em 0.15em 0.15em;
+  }
+  .cx-mouth {
+    bottom: 19%;
+    left: 50%;
+    width: 2.3em;
+    height: 0.36em;
+    margin-left: -1.15em;
+    border-radius: 999px;
+    background: var(--cx-emerald-light);
+    box-shadow: 0 0 0.6em rgb(16 185 129 / 70%);
+  }
+  .cx-demo[data-mood="done"] .cx-mouth {
+    height: 0.6em;
+    border-radius: 0 0 1.15em 1.15em;
+  }
+  .cx-shine {
+    top: 0.7em;
+    left: 1.6em;
+    width: 2.8em;
+    height: 1.4em;
+    rotate: -18deg;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, rgb(255 255 255 / 90%), transparent);
+  }
+}
+
+@keyframes cx-pop {
+  from {
+    opacity: 0;
+    translate: 0 10px;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+@keyframes cx-dot {
+  0%,
+  100% {
+    opacity: 0.3;
+    translate: 0 0;
+  }
+  40% {
+    opacity: 1;
+    translate: 0 -0.2rem;
+  }
+}
+@keyframes cx-blink {
+  0%,
+  93%,
+  100% {
+    scale: 1 1;
+  }
+  96% {
+    scale: 1 0.1;
+  }
+}
+@keyframes cx-breathe {
+  0%,
+  100% {
+    scale: 1 1;
+  }
+  50% {
+    scale: 1.015 1.035;
+  }
+}
+@keyframes cx-float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -0.5em;
+  }
+}
+@keyframes cx-sway {
+  0%,
+  100% {
+    rotate: 0deg;
+  }
+  30% {
+    rotate: -2.5deg;
+  }
+  70% {
+    rotate: 2deg;
+  }
+}
+@keyframes cx-talk {
+  0%,
+  100% {
+    scale: 1 1;
+  }
+  20% {
+    scale: 0.85 2.4;
+  }
+  45% {
+    scale: 1 1.3;
+  }
+  70% {
+    scale: 0.9 2.8;
+  }
+}
+@keyframes cx-nod {
+  0%,
+  100% {
+    rotate: x 0deg;
+  }
+  25% {
+    rotate: x -16deg;
+  }
+  50% {
+    rotate: x 4deg;
+  }
+  75% {
+    rotate: x -12deg;
+  }
+}
+@keyframes cx-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+@keyframes cx-bob {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -6px;
+  }
+}
+@keyframes cx-rise {
+  from {
+    opacity: 0;
+    translate: 0 60px;
+    scale: 0.92;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+@keyframes cx-slide {
+  from {
+    opacity: 0;
+    translate: 80px 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cx-figure {
+    animation: cx-float 6s ease-in-out infinite;
+  }
+  .cx-torso {
+    animation: cx-breathe 3.6s ease-in-out infinite;
+  }
+  .cx-head {
+    animation: cx-sway 7s ease-in-out infinite;
+  }
+  .cx-eye {
+    animation: cx-blink 5s ease-in-out infinite;
+  }
+  .cx-typing i {
+    animation: cx-dot 1s ease-in-out infinite;
+  }
+  .cx-typing i:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+  .cx-typing i:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+  .cx-demo[data-mood="talking"] .cx-mouth {
+    animation: cx-talk 600ms ease-in-out infinite;
+  }
+  .cx-demo:is([data-mood="talking"], [data-mood="thinking"]) .cx-core,
+  .cx-demo[data-mood="thinking"] .cx-antenna::after {
+    animation: cx-pulse 900ms ease-in-out infinite;
+  }
+  .cx-demo[data-mood="done"] .cx-nod {
+    animation: cx-nod 1.4s ease-in-out 200ms 1 both;
+  }
+  @media (min-width: 64rem) {
+    .cx-feedback[data-show="true"] {
+      animation: cx-bob 7s ease-in-out 1s infinite;
+    }
+    .cx-rec[data-show="true"] {
+      animation: cx-bob 6s ease-in-out infinite;
+    }
+    .cx-rec:nth-child(2) {
+      animation-delay: -2s;
+    }
+    .cx-rec:nth-child(3) {
+      animation-delay: -4s;
+    }
+  }
+  /* Entrance: the robot rises in, then the window slides into view. */
+  @supports (animation-timeline: view()) {
+    .cx-robot-col > .cx-robot {
+      animation: cx-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 5% entry 55%;
+    }
+    .cx-window {
+      animation: cx-slide linear both;
+      animation-timeline: view();
+      animation-range: entry 15% entry 65%;
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cx-demo,
+  .cx-demo * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

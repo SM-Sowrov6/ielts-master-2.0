@@ -1,0 +1,176 @@
+# Local development stack: postgres, redis, migrate (one-off), backend, worker (outbox),
+# mailpit (catches all email; inbox at http://127.0.0.1:8025), minio (S3-compatible media storage;
+# console at http://127.0.0.1:9001), frontend.
+# Further services (celery beat/flower, livekit) are added in the phase that first needs them
+# (docs/DEVELOPMENT_GUIDELINES.md §1).
+#
+# Usage: cp .env.example .env  (set POSTGRES_PASSWORD and AUTH_SECRET_KEY)
+#        docker compose up --build -d
+# Ports are published on 127.0.0.1 only. Never use this file for any deployed environment.
+
+name: ielts-master
+
+x-postgres-env: &postgres-env
+  POSTGRES_USER: ${POSTGRES_USER:-ielts}
+  POSTGRES_DB: ${POSTGRES_DB:-ielts}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
+
+# Shared by the API and the outbox worker (same image, ADR-002). Email goes to Mailpit locally.
+x-app-env: &app-env
+  APP_ENV: ${APP_ENV:-local}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  DATABASE_URL: postgresql://${POSTGRES_USER:-ielts}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@postgres:5432/${POSTGRES_DB:-ielts}
+  REDIS_URL: redis://redis:6379/0
+  READINESS_TIMEOUT_SECONDS: ${READINESS_TIMEOUT_SECONDS:-2.0}
+  PUBLIC_APP_URL: ${PUBLIC_APP_URL:-http://localhost:3000}
+  # Minimum age 16+ (Product Owner decision D-13, 2026-11-18). Legal documents (D-17) still pending.
+  REGISTRATION_MINIMUM_AGE: ${REGISTRATION_MINIMUM_AGE:-16}
+  AUTH_SECRET_KEY: ${AUTH_SECRET_KEY:?AUTH_SECRET_KEY must be set in .env (see .env.example)}
+  SMTP_HOST: ${SMTP_HOST:-mailpit}
+  SMTP_PORT: ${SMTP_PORT:-1025}
+  SMTP_SECURITY: ${SMTP_SECURITY:-none}
+  EMAIL_FROM: ${EMAIL_FROM:-IELTS MASTER <no-reply@ielts-master.localhost>}
+  # Media storage (S3 API). The backend talks to MinIO on the compose network; browsers upload to
+  # and play from the published port via short-lived presigned URLs.
+  S3_ENDPOINT_URL: http://minio:9000
+  S3_PUBLIC_ENDPOINT_URL: ${S3_PUBLIC_ENDPOINT_URL:-http://localhost:9000}
+  S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER:-ielts-minio}
+  S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set in .env (see .env.example)}
+  S3_BUCKET: ${S3_BUCKET:-ielts-media}
+
+services:
+  postgres:
+    image: pgvector/pgvector:0.8.1-pg18-trixie
+    environment: *postgres-env
+    volumes:
+      # PostgreSQL 18 images keep data under /var/lib/postgresql/<major>/docker
+      - postgres-data:/var/lib/postgresql
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
+  redis:
+    image: redis:8.2.3-alpine
+    # Local dev: no persistence needed (Redis is never the source of truth, docs/SYSTEM_ARCHITECTURE.md §6).
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ports:
+      - "127.0.0.1:6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  # One-off job: apply migrations, then exit. The backend starts only after it succeeds.
+  migrate:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/backend.Dockerfile
+    command: ["alembic", "-c", "/app/alembic.ini", "upgrade", "head"]
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-ielts}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@postgres:5432/${POSTGRES_DB:-ielts}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/backend.Dockerfile
+    environment: *app-env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    ports:
+      - "127.0.0.1:8000:8000"
+    healthcheck:
+      # Readiness: healthy only when PostgreSQL and Redis are reachable from the backend.
+      test: ["CMD", "python", "-c", "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/readyz', timeout=4).status == 200 else 1)"]
+      interval: 10s
+      timeout: 6s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # Outbox dispatcher: delivers verification / password-reset / security emails (ADR-017).
+  worker:
+    build:
+      context: .
+      dockerfile: infrastructure/docker/backend.Dockerfile
+    command: ["python", "-m", "app.workers.outbox"]
+    environment: *app-env
+    healthcheck:
+      disable: true  # no HTTP port; restart policy covers crashes
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+    restart: unless-stopped
+
+  # Development email catcher (never used outside local development). Web inbox: :8025.
+  mailpit:
+    image: axllent/mailpit:v1.33.1
+    environment:
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    ports:
+      - "127.0.0.1:8025:8025"
+      - "127.0.0.1:1025:1025"
+    restart: unless-stopped
+
+  # S3-compatible object storage for content media (docs/CONTENT_MANAGEMENT_ARCHITECTURE.md §5).
+  # Docker Hub/Quay no longer publish MinIO community images; this is Chainguard's build of the
+  # same server, pinned by digest (MinIO RELEASE.2026-11-16T00-11-40Z, AGPLv3, local dev only).
+  minio:
+    image: cgr.dev/chainguard/minio@sha256:7618b82bba99aadd77fcf59eb6cfd89b4b8b8e01ac796c474d57a1c1abf17e79
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-ielts-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?MINIO_ROOT_PASSWORD must be set in .env (see .env.example)}
+      # Browsers PUT uploads and GET audio directly with presigned URLs from the web app's origin.
+      MINIO_API_CORS_ALLOW_ORIGIN: ${PUBLIC_APP_URL:-http://localhost:3000}
+    volumes:
+      - minio-data:/data
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    healthcheck:
+      test: ["CMD", "/usr/bin/minio", "--version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../infrastructure/docker/frontend.Dockerfile
+    environment:
+      API_INTERNAL_URL: http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:3000"
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  minio-data:

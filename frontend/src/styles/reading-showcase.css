@@ -1,0 +1,281 @@
+/*
+ * Module 02 · Reading: full-width floating 3D display with a choreographed demo (cursor selects
+ * text, moves to the answer field, types the answer). Visual layers are CSS; the sequence is
+ * coordinated by components/marketing/reading-demo.tsx (timers only, no animation library).
+ */
+
+@layer components {
+  .rx-section {
+    --rx-bezel: oklch(0.17 0.014 265);
+    --rx-bezel-edge: oklch(0.3 0.014 265);
+  }
+
+  .rx-glow {
+    background:
+      radial-gradient(
+        55% 50% at 50% 55%,
+        color-mix(in oklch, var(--primary) 20%, transparent),
+        transparent 72%
+      ),
+      radial-gradient(
+        25% 30% at 12% 85%,
+        color-mix(in oklch, var(--brand-accent) 10%, transparent),
+        transparent 70%
+      );
+  }
+
+  /* Stage, tilt and float --------------------------------------------------------------------- */
+  .rx-stage {
+    position: relative;
+    perspective: 2800px;
+    perspective-origin: 50% 0%;
+  }
+  .rx-scene {
+    position: relative;
+    transform-style: preserve-3d;
+    transform: rotateX(calc(var(--tilt-y, 0) * -1.5deg)) rotateY(calc(var(--tilt-x, 0) * 2deg));
+    transition: transform 1000ms cubic-bezier(0.22, 0.8, 0.26, 1);
+  }
+  .rx-float {
+    transform-style: preserve-3d;
+  }
+  .rx-display {
+    position: relative;
+    transform-style: preserve-3d;
+  }
+  @media (min-width: 48rem) {
+    .rx-display {
+      transform: rotateX(7deg);
+    }
+  }
+
+  /* Display construction: rim layers (thickness), bezel, screen, glass ----------------------- */
+  .rx-rim {
+    position: absolute;
+    inset: 0;
+    border-radius: 1.4rem;
+    transform: translateZ(calc(var(--layer) * -2.2px));
+    background: color-mix(in srgb, var(--rx-bezel-edge) calc(100% - var(--layer) * 12%), black);
+  }
+  .rx-bezel {
+    position: relative;
+    border-radius: 1.4rem;
+    padding: clamp(0.4rem, 1.1vw, 0.9rem) clamp(0.4rem, 1.1vw, 0.9rem) clamp(0.9rem, 2.2vw, 1.6rem);
+    background: linear-gradient(170deg, oklch(0.24 0.014 265), var(--rx-bezel) 40%);
+    box-shadow:
+      inset 0 0 0 1px var(--rx-bezel-edge),
+      inset 0 1px 0 oklch(1 0 0 / 12%),
+      0 50px 90px -30px color-mix(in oklch, var(--primary) 35%, transparent),
+      0 30px 50px -25px oklch(0 0 0 / 35%);
+  }
+  .rx-chin {
+    position: absolute;
+    left: 50%;
+    bottom: clamp(0.25rem, 0.7vw, 0.5rem);
+    translate: -50% 0;
+    font-size: clamp(0.5rem, 0.8vw, 0.6875rem);
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    color: oklch(0.62 0.02 265);
+  }
+  .rx-screen {
+    position: relative;
+    overflow: hidden;
+    border-radius: 0.75rem;
+    background: var(--background);
+    container-type: inline-size;
+  }
+  .rx-screen::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 30;
+    pointer-events: none;
+    background: linear-gradient(
+      112deg,
+      oklch(1 0 0 / 12%) 0%,
+      oklch(1 0 0 / 3%) 26%,
+      transparent 27%,
+      transparent 100%
+    );
+  }
+  .rx-floor {
+    position: absolute;
+    left: 8%;
+    right: 8%;
+    bottom: -3.5rem;
+    height: 3rem;
+    border-radius: 50%;
+    background: radial-gradient(
+      closest-side,
+      color-mix(in oklch, var(--foreground) 22%, transparent),
+      transparent
+    );
+    filter: blur(14px);
+  }
+
+  /* In-screen app ------------------------------------------------------------------------------ */
+  .rx-app {
+    font-size: clamp(8.5px, 1.18cqw, 15px);
+    --spacing: 0.25em;
+    --text-xs: 0.75em;
+    --text-sm: 0.875em;
+    --text-base: 1em;
+    --text-lg: 1.125em;
+    --text-xl: 1.25em;
+    line-height: 1.5;
+  }
+  .rx-body {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+  }
+  @container (max-width: 40rem) {
+    .rx-app {
+      font-size: clamp(9px, 2.6cqw, 13px);
+    }
+    .rx-body {
+      grid-template-columns: 1fr;
+    }
+    .rx-wide-only {
+      display: none;
+    }
+  }
+
+  /* Text selection and highlight (as in a browser / the app's highlight tool) */
+  .rx-selection {
+    border-radius: 2px;
+    background: color-mix(in oklch, var(--primary) 32%, transparent);
+  }
+  .rx-highlight {
+    border-radius: 2px;
+    background: color-mix(in oklch, var(--brand-accent) 28%, transparent);
+    box-shadow: 0 1.5px 0 color-mix(in oklch, var(--brand-accent) 70%, transparent);
+    transition: background-color 400ms ease;
+  }
+
+  .rx-field {
+    transition:
+      border-color 250ms ease,
+      box-shadow 250ms ease,
+      background-color 250ms ease;
+  }
+  .rx-field[data-focused="true"] {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 0.25em color-mix(in oklch, var(--primary) 18%, transparent);
+  }
+  .rx-field[data-saved="true"] {
+    border-color: color-mix(in oklch, var(--success) 70%, transparent);
+    background: color-mix(in oklch, var(--success) 7%, var(--card));
+  }
+  .rx-caret {
+    display: inline-block;
+    width: 1.5px;
+    height: 1.15em;
+    margin-left: 1px;
+    vertical-align: -0.2em;
+    background: var(--foreground);
+    animation: rx-blink 1s steps(1) infinite;
+  }
+
+  /* Cursor ------------------------------------------------------------------------------------ */
+  .rx-cursor {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 40;
+    pointer-events: none;
+    transition-property: transform, opacity;
+    transition-timing-function: cubic-bezier(0.45, 0.05, 0.25, 1), ease;
+  }
+  .rx-cursor svg {
+    display: block;
+    width: 22px;
+    height: 22px;
+    filter: drop-shadow(0 2px 2px oklch(0 0 0 / 30%));
+    transition: scale 120ms ease;
+  }
+  .rx-cursor[data-pressed="true"] svg {
+    scale: 0.88;
+  }
+  .rx-cursor[data-ibeam="true"] svg {
+    translate: -11px -11px;
+  }
+  .rx-click {
+    position: absolute;
+    left: -14px;
+    top: -14px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 2px solid color-mix(in oklch, var(--primary) 70%, transparent);
+    animation: rx-click 500ms ease-out forwards;
+  }
+
+  .rx-fade {
+    transition:
+      opacity 400ms ease,
+      background-color 300ms ease,
+      color 300ms ease;
+  }
+}
+
+@keyframes rx-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes rx-click {
+  from {
+    opacity: 1;
+    scale: 0.4;
+  }
+  to {
+    opacity: 0;
+    scale: 1.4;
+  }
+}
+@keyframes rx-float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -8px;
+  }
+}
+@keyframes rx-reveal {
+  from {
+    opacity: 0;
+    translate: 0 80px;
+    scale: 0.96;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @media (min-width: 48rem) {
+    .rx-float {
+      animation: rx-float 10s ease-in-out infinite;
+    }
+  }
+  @supports (animation-timeline: view()) {
+    .rx-reveal {
+      animation: rx-reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 70%;
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rx-caret {
+    animation: none;
+  }
+}

@@ -1,0 +1,894 @@
+{
+  "$defs": {
+    "AnswerIn": {
+      "additionalProperties": false,
+      "properties": {
+        "match_mode": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/MatchMode"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "slot": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Slot"
+        },
+        "value": {
+          "description": "Key notation, e.g. '(the) library'",
+          "maxLength": 500,
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "value"
+      ],
+      "title": "AnswerIn",
+      "type": "object"
+    },
+    "BookIn": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Category"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "is_premium": {
+          "default": false,
+          "title": "Is Premium",
+          "type": "boolean"
+        },
+        "series": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Series"
+        },
+        "slug": {
+          "maxLength": 120,
+          "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+          "title": "Slug",
+          "type": "string"
+        },
+        "title": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "slug",
+        "title"
+      ],
+      "title": "BookIn",
+      "type": "object"
+    },
+    "CatalogIn": {
+      "additionalProperties": false,
+      "properties": {
+        "book": {
+          "$ref": "#/$defs/BookIn"
+        },
+        "edition": {
+          "$ref": "#/$defs/EditionIn"
+        },
+        "test": {
+          "$ref": "#/$defs/TestIn"
+        }
+      },
+      "required": [
+        "book",
+        "edition",
+        "test"
+      ],
+      "title": "CatalogIn",
+      "type": "object"
+    },
+    "Difficulty": {
+      "enum": [
+        "easy",
+        "medium",
+        "hard"
+      ],
+      "title": "Difficulty",
+      "type": "string"
+    },
+    "EditionIn": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "publication_year": {
+          "anyOf": [
+            {
+              "maximum": 2100,
+              "minimum": 1980,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Publication Year"
+        },
+        "variant": {
+          "$ref": "#/$defs/EditionVariant"
+        }
+      },
+      "required": [
+        "label",
+        "variant"
+      ],
+      "title": "EditionIn",
+      "type": "object"
+    },
+    "EditionVariant": {
+      "enum": [
+        "academic",
+        "general",
+        "both"
+      ],
+      "title": "EditionVariant",
+      "type": "string"
+    },
+    "ExplanationIn": {
+      "additionalProperties": false,
+      "properties": {
+        "audio_end_ms": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Audio End Ms"
+        },
+        "audio_start_ms": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Audio Start Ms"
+        },
+        "body": {
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
+        },
+        "evidence_paragraph_label": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Evidence Paragraph Label"
+        }
+      },
+      "required": [
+        "body"
+      ],
+      "title": "ExplanationIn",
+      "type": "object"
+    },
+    "GroupIn": {
+      "additionalProperties": false,
+      "properties": {
+        "config": {
+          "additionalProperties": true,
+          "title": "Config",
+          "type": "object"
+        },
+        "image_asset_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image Asset Id"
+        },
+        "instructions": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instructions"
+        },
+        "options": {
+          "items": {
+            "$ref": "#/$defs/OptionIn"
+          },
+          "title": "Options",
+          "type": "array"
+        },
+        "question_type": {
+          "title": "Question Type",
+          "type": "string"
+        },
+        "questions": {
+          "items": {
+            "$ref": "#/$defs/QuestionIn"
+          },
+          "minItems": 1,
+          "title": "Questions",
+          "type": "array"
+        }
+      },
+      "required": [
+        "question_type",
+        "questions"
+      ],
+      "title": "GroupIn",
+      "type": "object"
+    },
+    "MatchMode": {
+      "enum": [
+        "text",
+        "option",
+        "set_member",
+        "numeric",
+        "time",
+        "date"
+      ],
+      "title": "MatchMode",
+      "type": "string"
+    },
+    "ModuleIn": {
+      "additionalProperties": false,
+      "properties": {
+        "duration_seconds": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration Seconds"
+        },
+        "module": {
+          "$ref": "#/$defs/ModuleKind"
+        },
+        "sections": {
+          "items": {
+            "$ref": "#/$defs/SectionIn"
+          },
+          "title": "Sections",
+          "type": "array"
+        },
+        "speaking_parts": {
+          "items": {
+            "$ref": "#/$defs/SpeakingPartIn"
+          },
+          "title": "Speaking Parts",
+          "type": "array"
+        },
+        "variant": {
+          "$ref": "#/$defs/ModuleVariant"
+        },
+        "writing_tasks": {
+          "items": {
+            "$ref": "#/$defs/WritingTaskIn"
+          },
+          "title": "Writing Tasks",
+          "type": "array"
+        }
+      },
+      "required": [
+        "module",
+        "variant"
+      ],
+      "title": "ModuleIn",
+      "type": "object"
+    },
+    "ModuleKind": {
+      "enum": [
+        "listening",
+        "reading",
+        "writing",
+        "speaking"
+      ],
+      "title": "ModuleKind",
+      "type": "string"
+    },
+    "ModuleVariant": {
+      "enum": [
+        "academic",
+        "general",
+        "common"
+      ],
+      "title": "ModuleVariant",
+      "type": "string"
+    },
+    "OptionIn": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "maxLength": 20,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "text": {
+          "maxLength": 2000,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "text"
+      ],
+      "title": "OptionIn",
+      "type": "object"
+    },
+    "ParagraphIn": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "anyOf": [
+            {
+              "maxLength": 10,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Label"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "ParagraphIn",
+      "type": "object"
+    },
+    "PassageIn": {
+      "additionalProperties": false,
+      "properties": {
+        "body": {
+          "additionalProperties": true,
+          "title": "Body",
+          "type": "object"
+        },
+        "paragraphs": {
+          "items": {
+            "$ref": "#/$defs/ParagraphIn"
+          },
+          "title": "Paragraphs",
+          "type": "array"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        }
+      },
+      "required": [
+        "body"
+      ],
+      "title": "PassageIn",
+      "type": "object"
+    },
+    "QuestionIn": {
+      "additionalProperties": false,
+      "properties": {
+        "answers": {
+          "items": {
+            "$ref": "#/$defs/AnswerIn"
+          },
+          "minItems": 1,
+          "title": "Answers",
+          "type": "array"
+        },
+        "config": {
+          "additionalProperties": true,
+          "title": "Config",
+          "type": "object"
+        },
+        "difficulty": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Difficulty"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "explanation": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ExplanationIn"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "lineage_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Lineage Id"
+        },
+        "number_from": {
+          "maximum": 40,
+          "minimum": 1,
+          "title": "Number From",
+          "type": "integer"
+        },
+        "number_to": {
+          "anyOf": [
+            {
+              "maximum": 40,
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Number To"
+        },
+        "options": {
+          "items": {
+            "$ref": "#/$defs/OptionIn"
+          },
+          "title": "Options",
+          "type": "array"
+        },
+        "stem": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Stem"
+        },
+        "tags": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 20,
+          "title": "Tags",
+          "type": "array"
+        }
+      },
+      "required": [
+        "number_from",
+        "answers"
+      ],
+      "title": "QuestionIn",
+      "type": "object"
+    },
+    "SectionIn": {
+      "additionalProperties": false,
+      "properties": {
+        "audio_asset_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Audio Asset Id"
+        },
+        "context": {
+          "anyOf": [
+            {
+              "maxLength": 2000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Context"
+        },
+        "duration_seconds": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration Seconds"
+        },
+        "groups": {
+          "items": {
+            "$ref": "#/$defs/GroupIn"
+          },
+          "title": "Groups",
+          "type": "array"
+        },
+        "instructions": {
+          "anyOf": [
+            {
+              "maxLength": 5000,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Instructions"
+        },
+        "passages": {
+          "items": {
+            "$ref": "#/$defs/PassageIn"
+          },
+          "title": "Passages",
+          "type": "array"
+        },
+        "section_no": {
+          "maximum": 4,
+          "minimum": 1,
+          "title": "Section No",
+          "type": "integer"
+        },
+        "title": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Title"
+        }
+      },
+      "required": [
+        "section_no"
+      ],
+      "title": "SectionIn",
+      "type": "object"
+    },
+    "SpeakingPartIn": {
+      "additionalProperties": false,
+      "properties": {
+        "cue_card": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cue Card"
+        },
+        "part_no": {
+          "enum": [
+            1,
+            2,
+            3
+          ],
+          "title": "Part No",
+          "type": "integer"
+        },
+        "questions": {
+          "items": {
+            "$ref": "#/$defs/SpeakingQuestionIn"
+          },
+          "title": "Questions",
+          "type": "array"
+        },
+        "topic": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Topic",
+          "type": "string"
+        }
+      },
+      "required": [
+        "part_no",
+        "topic"
+      ],
+      "title": "SpeakingPartIn",
+      "type": "object"
+    },
+    "SpeakingQuestionIn": {
+      "additionalProperties": false,
+      "properties": {
+        "is_follow_up": {
+          "default": false,
+          "title": "Is Follow Up",
+          "type": "boolean"
+        },
+        "text": {
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "text"
+      ],
+      "title": "SpeakingQuestionIn",
+      "type": "object"
+    },
+    "TestIn": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "maxLength": 50,
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "sort_order": {
+          "default": 0,
+          "title": "Sort Order",
+          "type": "integer"
+        },
+        "title": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "title"
+      ],
+      "title": "TestIn",
+      "type": "object"
+    },
+    "WritingTaskIn": {
+      "additionalProperties": false,
+      "properties": {
+        "image_asset_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image Asset Id"
+        },
+        "key_features": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Key Features",
+          "type": "array"
+        },
+        "min_words": {
+          "exclusiveMinimum": 0,
+          "title": "Min Words",
+          "type": "integer"
+        },
+        "prompt": {
+          "additionalProperties": true,
+          "title": "Prompt",
+          "type": "object"
+        },
+        "task_kind": {
+          "$ref": "#/$defs/WritingTaskKind"
+        },
+        "task_no": {
+          "enum": [
+            1,
+            2
+          ],
+          "title": "Task No",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "task_no",
+        "task_kind",
+        "prompt",
+        "min_words"
+      ],
+      "title": "WritingTaskIn",
+      "type": "object"
+    },
+    "WritingTaskKind": {
+      "enum": [
+        "academic_report",
+        "gt_letter",
+        "essay"
+      ],
+      "title": "WritingTaskKind",
+      "type": "string"
+    }
+  },
+  "additionalProperties": false,
+  "description": "Canonical import format (JSON Schema: docs/schemas/test-version-import.schema.json).",
+  "properties": {
+    "catalog": {
+      "$ref": "#/$defs/CatalogIn"
+    },
+    "change_note": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Change Note"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "maxLength": 5000,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Description"
+    },
+    "difficulty": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Difficulty"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "modules": {
+      "items": {
+        "$ref": "#/$defs/ModuleIn"
+      },
+      "minItems": 1,
+      "title": "Modules",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": 1,
+      "default": 1,
+      "title": "Schema Version",
+      "type": "integer"
+    },
+    "tags": {
+      "items": {
+        "maxLength": 50,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 20,
+      "title": "Tags",
+      "type": "array"
+    }
+  },
+  "required": [
+    "catalog",
+    "modules"
+  ],
+  "title": "TestVersionImport",
+  "type": "object"
+}

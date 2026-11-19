@@ -1,0 +1,874 @@
+/*
+ * Module 03 · Writing: a large, frontal 3D MacBook (CSS 3D only) whose keyboard types a sample
+ * essay into the Writing editor on screen, watched by an AI mascot seated on the lid.
+ *
+ * Geometry: the lid stands on its bottom edge, opened slightly past upright; the base lies flat in
+ * front of it (rotateX 90deg) with a stacked rim for thickness. The camera looks down at the
+ * device (rotateX on .wx-device), so the keyboard is clearly visible — unlike the three-quarter
+ * Listening laptop. The screen is a size container: the app scales with it via cqw.
+ * The sequence is coordinated by components/marketing/writing-demo.tsx (timers only).
+ */
+
+@layer components {
+  .wx-section {
+    --mb-metal-light: oklch(0.95 0.006 265);
+    --mb-metal: oklch(0.88 0.008 265);
+    --mb-metal-dark: oklch(0.72 0.01 265);
+    --mb-key: oklch(0.2 0.012 265);
+    --mb-key-top: oklch(0.27 0.012 265);
+    --mb-key-label: oklch(0.82 0.01 265);
+    --mb-bezel: oklch(0.15 0.012 265);
+    --mb-pad: oklch(0.9 0.007 265);
+    --bot-shell: #ffffff;
+    --bot-shell-shade: #c7d3ea;
+    --bot-blue: #2563eb;
+    --bot-blue-dark: #1d3fae;
+    --bot-emerald: #10b981;
+  }
+  .dark .wx-section {
+    --mb-metal-light: oklch(0.46 0.012 265);
+    --mb-metal: oklch(0.37 0.012 265);
+    --mb-metal-dark: oklch(0.26 0.012 265);
+    --mb-key: oklch(0.13 0.01 265);
+    --mb-key-top: oklch(0.19 0.01 265);
+    --mb-pad: oklch(0.33 0.012 265);
+    --bot-shell-shade: #9fb0d0;
+  }
+
+  .wx-glow {
+    background:
+      radial-gradient(
+        42% 40% at 50% 38%,
+        color-mix(in oklch, var(--primary) 24%, transparent),
+        transparent 72%
+      ),
+      radial-gradient(
+        22% 26% at 88% 70%,
+        color-mix(in oklch, var(--brand-accent) 14%, transparent),
+        transparent 70%
+      ),
+      radial-gradient(
+        22% 26% at 12% 70%,
+        color-mix(in oklch, var(--primary) 12%, transparent),
+        transparent 70%
+      );
+  }
+
+  /* Stage and camera -------------------------------------------------------------------------- */
+  .wx-stage {
+    position: relative;
+  }
+  .wx-scene {
+    position: relative;
+    transform-style: preserve-3d;
+    transform: rotateX(calc(var(--tilt-y, 0) * -2deg)) rotateY(calc(var(--tilt-x, 0) * 3deg));
+    transition: transform 1000ms cubic-bezier(0.22, 0.8, 0.26, 1);
+  }
+  .wx-demo {
+    position: relative;
+    perspective: 2600px;
+    perspective-origin: 50% 0%;
+  }
+  .wx-floaters {
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    pointer-events: none;
+  }
+  .wx-rig {
+    position: relative;
+    padding-bottom: 24%;
+    transform-style: preserve-3d;
+  }
+
+  /* MacBook ------------------------------------------------------------------------------------ */
+  .wx-device {
+    position: relative;
+    width: 96%;
+    margin-inline: auto;
+    transform-style: preserve-3d;
+    transform: rotateX(-21deg);
+  }
+  @media (min-width: 48rem) {
+    .wx-device {
+      width: 86%;
+    }
+  }
+  @media (min-width: 64rem) {
+    .wx-device {
+      width: 64%;
+    }
+  }
+  .wx-lid {
+    position: relative;
+    aspect-ratio: 16 / 10.4;
+    transform-origin: 50% 100%;
+    transform: rotateX(14deg);
+    transform-style: preserve-3d;
+    padding: 2% 2% 3.2%;
+    border-radius: 3.2% / 4.9%;
+    background: linear-gradient(180deg, oklch(0.2 0.012 265), var(--mb-bezel) 30%);
+    box-shadow:
+      inset 0 0 0 1px oklch(0.34 0.012 265),
+      0 0 0 1.5px var(--mb-metal-dark),
+      0 0 0 3px var(--mb-metal),
+      0 40px 90px -30px color-mix(in oklch, var(--primary) 45%, transparent);
+  }
+  /* Lid thickness behind the bezel. */
+  .wx-lid::before {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border-radius: inherit;
+    transform: translateZ(-5px);
+    background: var(--mb-metal-dark);
+  }
+  .wx-camera {
+    position: absolute;
+    top: 0.7%;
+    left: 50%;
+    z-index: 2;
+    width: 0.32rem;
+    height: 0.32rem;
+    translate: -50% 0;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, oklch(0.45 0.08 263), oklch(0.12 0.02 263));
+  }
+  .wx-screen {
+    position: relative;
+    height: 100%;
+    overflow: hidden;
+    border-radius: 1% / 1.6%;
+    background: oklch(0.12 0.015 265);
+    container-type: inline-size;
+  }
+  .wx-screen::after {
+    /* glass reflection + a soft top highlight */
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 5;
+    pointer-events: none;
+    background:
+      linear-gradient(
+        112deg,
+        oklch(1 0 0 / 14%) 0%,
+        oklch(1 0 0 / 4%) 28%,
+        transparent 29%,
+        transparent 100%
+      ),
+      linear-gradient(to bottom, oklch(1 0 0 / 5%), transparent 12%);
+  }
+  .wx-app {
+    height: 100%;
+    font-size: calc(100cqw / 48);
+    line-height: 1.45;
+    --spacing: 0.25em;
+    --text-xs: 0.75em;
+    --text-sm: 0.875em;
+    --text-base: 1em;
+    --text-lg: 1.15em;
+    --text-xl: 1.25em;
+    transition:
+      opacity 900ms ease,
+      filter 900ms ease;
+  }
+  .wx-demo[data-awake="false"] .wx-app {
+    opacity: 0;
+    filter: blur(4px);
+  }
+  .wx-app-body {
+    display: grid;
+    grid-template-columns: 31% 1fr;
+  }
+  .wx-topbar {
+    padding-right: 13%; /* room for the mascot's legs */
+  }
+  .wx-narrow-only {
+    display: none;
+  }
+  @container (max-width: 34rem) {
+    .wx-app {
+      font-size: calc(100cqw / 34);
+    }
+    .wx-app-body {
+      grid-template-columns: 1fr;
+    }
+    /* !important: these elements carry Tailwind display utilities (utilities layer wins). */
+    .wx-task,
+    .wx-wide-only {
+      display: none !important;
+    }
+    .wx-narrow-only {
+      display: inline !important;
+    }
+  }
+
+  .wx-editor {
+    transition: opacity 600ms ease;
+  }
+  .wx-demo[data-fading="true"] .wx-editor {
+    opacity: 0;
+  }
+  .wx-caret {
+    display: inline-block;
+    width: 0.12em;
+    height: 1.2em;
+    margin-left: 0.06em;
+    vertical-align: -0.24em;
+    border-radius: 1px;
+    background: var(--primary);
+    opacity: 0;
+  }
+  .wx-caret[data-on="true"] {
+    opacity: 1;
+  }
+  .wx-caret[data-on="true"][data-blink="true"] {
+    animation: wx-blink 1.05s steps(1) infinite;
+  }
+  .wx-progress {
+    background: linear-gradient(90deg, var(--primary), var(--brand-accent));
+    transition: width 220ms ease;
+  }
+  .wx-fade {
+    transition:
+      background-color 400ms ease,
+      color 400ms ease,
+      border-color 400ms ease;
+  }
+
+  /* Base: deck, keyboard, trackpad, rim --------------------------------------------------------- */
+  .wx-base {
+    position: absolute;
+    top: 100%;
+    left: -3%;
+    right: -3%;
+    aspect-ratio: 1 / 0.6;
+    transform-origin: 50% 0;
+    transform: rotateX(90deg);
+    transform-style: preserve-3d;
+    border-radius: 1.4% 1.4% 5.5% 5.5% / 2% 2% 8.5% 8.5%;
+  }
+  .wx-deck {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    container-type: inline-size;
+    background: linear-gradient(
+      to bottom,
+      var(--mb-metal-dark) 0%,
+      var(--mb-metal) 5%,
+      var(--mb-metal-light) 60%,
+      var(--mb-metal) 100%
+    );
+    box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--mb-metal-dark) 70%, transparent);
+  }
+  .wx-rim {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    transform: translateZ(calc(var(--layer) * -1px));
+    background: color-mix(
+      in srgb,
+      var(--mb-metal) calc(100% - var(--layer) * 9%),
+      var(--mb-metal-dark)
+    );
+  }
+  .wx-floor {
+    position: absolute;
+    inset: 4% -8% -12% -8%;
+    transform: translateZ(-16px);
+    border-radius: 50%;
+    /* soft falloff from the gradient itself: no filter, so it never needs re-blurring */
+    background: radial-gradient(
+      closest-side,
+      color-mix(
+        in oklch,
+        var(--primary) 20%,
+        color-mix(in oklch, var(--foreground) 16%, transparent)
+      ),
+      color-mix(in oklch, var(--primary) 7%, transparent) 55%,
+      transparent
+    );
+  }
+  .wx-hinge {
+    position: absolute;
+    top: 0;
+    left: 9%;
+    right: 9%;
+    height: 3%;
+    border-radius: 0 0 0.5rem 0.5rem;
+    background: linear-gradient(to bottom, var(--mb-bezel), var(--mb-metal-dark));
+  }
+  .wx-keyboard {
+    position: absolute;
+    top: 7.5%;
+    left: 7.5%;
+    right: 7.5%;
+    height: 50%;
+    display: flex;
+    flex-direction: column;
+    gap: 1.6%;
+    padding: 1.1%;
+    border-radius: 0.6cqw;
+    background: color-mix(in oklch, var(--mb-metal-dark) 60%, black 12%);
+    box-shadow: inset 0 1px 2px oklch(0 0 0 / 25%);
+  }
+  .wx-row {
+    display: flex;
+    flex: 1;
+    gap: 0.55%;
+  }
+  .wx-row-fn {
+    flex: 0.62;
+  }
+  .wx-key {
+    flex-basis: 0;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    border-radius: 0.45cqw;
+    font-size: 1.15cqw;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+    color: var(--mb-key-label);
+    background: linear-gradient(to bottom, var(--mb-key-top), var(--mb-key));
+    box-shadow:
+      inset 0 0.08cqw 0 oklch(1 0 0 / 10%),
+      0 0.18cqw 0 oklch(0 0 0 / 45%);
+    transition:
+      background 140ms ease,
+      box-shadow 140ms ease,
+      translate 90ms ease,
+      color 140ms ease;
+  }
+  .wx-key[data-mod="true"] {
+    font-size: 0.85cqw;
+  }
+  .wx-key[data-down="true"] {
+    translate: 0 0.14cqw;
+    color: white;
+    background: linear-gradient(
+      to bottom,
+      color-mix(in oklch, var(--bot-blue) 75%, white 10%),
+      var(--bot-blue)
+    );
+    box-shadow:
+      0 0 0 0.12cqw color-mix(in oklch, var(--bot-blue) 60%, transparent),
+      0 0 1.4cqw 0.3cqw color-mix(in oklch, var(--bot-blue) 55%, transparent);
+    transition-duration: 30ms;
+  }
+  .wx-trackpad {
+    position: absolute;
+    top: 62%;
+    left: 30%;
+    right: 30%;
+    bottom: 6%;
+    border-radius: 1cqw;
+    background: var(--mb-pad);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in oklch, var(--mb-metal-dark) 80%, transparent),
+      inset 0 2px 6px oklch(0 0 0 / 8%);
+  }
+
+  /* AI mascot on the top-right corner of the lid -------------------------------------------------- */
+  .wx-bot {
+    --fx: 0.92;
+    --fy: 0;
+    position: absolute;
+    right: 5%;
+    bottom: calc(100% - 0.35em);
+    z-index: 6;
+    width: 9em;
+    height: 10.5em;
+    font-size: clamp(4.4px, 0.74vw, 11px);
+    transform: translateZ(6px);
+    transform-style: preserve-3d;
+    pointer-events: none;
+  }
+  .wx-bot > span,
+  .wx-bot span {
+    position: absolute;
+    display: block;
+  }
+  .wx-bot-contact {
+    left: 0.8em;
+    right: 0.8em;
+    bottom: -0.9em;
+    height: 1.6em;
+    border-radius: 50%;
+    background: oklch(0 0 0 / 55%);
+    filter: blur(0.5em);
+  }
+  .wx-bot-leg {
+    top: calc(100% - 0.9em);
+    width: 1.35em;
+    height: 3.3em;
+    border-radius: 0.7em;
+    background: linear-gradient(
+      90deg,
+      var(--bot-shell-shade),
+      var(--bot-shell) 45%,
+      var(--bot-shell-shade)
+    );
+    box-shadow: 0 0.5em 0.7em -0.1em oklch(0 0 0 / 45%);
+    transform-origin: 50% 0;
+  }
+  .wx-bot-leg::after {
+    content: "";
+    position: absolute;
+    left: -0.12em;
+    right: -0.12em;
+    bottom: 0;
+    height: 1.25em;
+    border-radius: 0.5em 0.5em 0.75em 0.75em;
+    background: linear-gradient(to bottom, var(--bot-blue), var(--bot-blue-dark));
+  }
+  .wx-bot-leg-l {
+    left: 2.6em;
+    rotate: 4deg;
+  }
+  .wx-bot-leg-r {
+    left: 4.95em;
+    rotate: -6deg;
+  }
+  .wx-bot-body {
+    left: 1.7em;
+    bottom: 0;
+    width: 5.6em;
+    height: 4.5em;
+    border-radius: 2.6em 2.6em 1.7em 1.7em;
+    background: radial-gradient(
+      120% 110% at 35% 25%,
+      var(--bot-shell) 0%,
+      color-mix(in srgb, var(--bot-shell), var(--bot-shell-shade) 45%) 55%,
+      var(--bot-shell-shade) 100%
+    );
+    box-shadow:
+      inset 0 -0.3em 0.6em oklch(0.4 0.08 263 / 25%),
+      0 0.4em 0.8em -0.3em oklch(0 0 0 / 35%);
+    transform-origin: 50% 100%;
+  }
+  .wx-bot-chest {
+    left: 50%;
+    top: 1.2em;
+    width: 2.6em;
+    height: 1.7em;
+    translate: -50% 0;
+    border-radius: 0.8em;
+    background: linear-gradient(
+      160deg,
+      color-mix(in srgb, var(--bot-blue), white 18%),
+      var(--bot-blue-dark)
+    );
+    box-shadow: inset 0 0.1em 0 oklch(1 0 0 / 30%);
+  }
+  .wx-bot-chest::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0.6em;
+    height: 0.6em;
+    translate: -50% -50%;
+    border-radius: 50%;
+    background: #6ee7b7;
+    box-shadow: 0 0 0.6em 0.15em color-mix(in srgb, var(--bot-emerald) 80%, transparent);
+  }
+  .wx-bot-arm {
+    bottom: 0.9em;
+    width: 1.25em;
+    height: 3em;
+    border-radius: 0.65em;
+    background: linear-gradient(
+      90deg,
+      var(--bot-shell-shade),
+      var(--bot-shell) 50%,
+      var(--bot-shell-shade)
+    );
+    transform-origin: 50% 0.6em;
+    transition: rotate 600ms cubic-bezier(0.3, 1.4, 0.4, 1);
+  }
+  .wx-bot-arm-l {
+    left: 0.85em;
+    rotate: 22deg;
+  }
+  .wx-bot-arm-r {
+    right: 0.85em;
+    rotate: -22deg;
+  }
+  .wx-bot-hand {
+    left: 50%;
+    bottom: -0.35em;
+    width: 1.45em;
+    height: 1.45em;
+    translate: -50% 0;
+    border-radius: 50%;
+    background: radial-gradient(
+      circle at 35% 30%,
+      color-mix(in srgb, var(--bot-blue), white 25%),
+      var(--bot-blue-dark)
+    );
+  }
+  .wx-bot-hand::after {
+    /* thumb, visible when the arm is raised */
+    content: "";
+    position: absolute;
+    left: 0.85em;
+    bottom: 0.7em;
+    width: 0.5em;
+    height: 0.95em;
+    border-radius: 0.3em;
+    background: var(--bot-blue);
+    opacity: 0;
+    transition: opacity 300ms ease 250ms;
+  }
+  .wx-bot[data-mood="done"] .wx-bot-arm-r {
+    rotate: -165deg;
+  }
+  .wx-bot[data-mood="done"] .wx-bot-arm-r .wx-bot-hand::after {
+    opacity: 1;
+  }
+  .wx-bot-nod {
+    left: 0.5em;
+    bottom: 3.85em;
+    width: 8em;
+    height: 6.3em;
+    transform-origin: 50% 95%;
+    transform-style: preserve-3d;
+  }
+  .wx-bot-head {
+    inset: 0;
+    border-radius: 2.7em / 2.5em;
+    background: radial-gradient(
+      120% 120% at 32% 22%,
+      var(--bot-shell) 0%,
+      color-mix(in srgb, var(--bot-shell), var(--bot-shell-shade) 40%) 55%,
+      var(--bot-shell-shade) 100%
+    );
+    box-shadow:
+      inset 0 -0.35em 0.7em oklch(0.4 0.08 263 / 22%),
+      0 0.5em 0.9em -0.4em oklch(0 0 0 / 40%);
+    translate: calc((var(--fx) - 0.95) * 0.85em) calc(var(--fy) * 0.4em);
+    transform: rotateX(calc(-8deg - var(--fy) * 34deg)) rotateY(calc((var(--fx) - 0.95) * 72deg))
+      rotateZ(calc((var(--fx) - 0.95) * 26deg));
+    transform-origin: 50% 80%;
+    transition:
+      transform 420ms cubic-bezier(0.25, 0.8, 0.3, 1),
+      translate 420ms cubic-bezier(0.25, 0.8, 0.3, 1);
+  }
+  .wx-bot-antenna {
+    left: 50%;
+    top: -1.5em;
+    width: 0.24em;
+    height: 1.6em;
+    translate: -50% 0;
+    border-radius: 0.2em;
+    background: var(--bot-shell-shade);
+  }
+  .wx-bot-antenna::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: -0.45em;
+    width: 0.85em;
+    height: 0.85em;
+    translate: -50% 0;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 30%, #a7f3d0, var(--bot-emerald));
+    box-shadow: 0 0 0.7em 0.15em color-mix(in srgb, var(--bot-emerald) 65%, transparent);
+  }
+  .wx-bot-ear {
+    top: 2.2em;
+    width: 1.2em;
+    height: 1.9em;
+    border-radius: 0.6em;
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--bot-blue), white 15%),
+      var(--bot-blue-dark)
+    );
+  }
+  .wx-bot-ear-l {
+    left: -0.55em;
+  }
+  .wx-bot-ear-r {
+    right: -0.55em;
+  }
+  .wx-bot-face {
+    inset: 1em 0.85em 1.15em;
+    overflow: hidden;
+    border-radius: 1.8em / 1.6em;
+    background: linear-gradient(170deg, #1a2d5c, #0a142e 70%);
+    box-shadow: inset 0 0.15em 0.3em oklch(0 0 0 / 50%);
+    translate: calc((var(--fx) - 0.95) * 1em) calc(var(--fy) * 0.5em);
+    transition: translate 380ms cubic-bezier(0.25, 0.8, 0.3, 1);
+  }
+  .wx-bot-face::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(150deg, oklch(1 0 0 / 22%), transparent 40%);
+  }
+  .wx-bot-eyes {
+    left: 50%;
+    top: 50%;
+    display: flex !important;
+    gap: 1.25em;
+    translate: calc(-50% + (var(--fx) - 0.95) * 1.9em) calc(-50% + var(--fy) * 1.1em - 0.2em);
+    transition: translate 300ms ease-out;
+  }
+  .wx-bot-eye {
+    position: relative !important;
+    width: 1.05em;
+    height: 1.45em;
+    border-radius: 0.55em;
+    background: linear-gradient(to bottom, #a7f3d0, var(--bot-emerald));
+    box-shadow: 0 0 0.6em 0.1em color-mix(in srgb, var(--bot-emerald) 70%, transparent);
+    transition:
+      height 300ms ease,
+      border-radius 300ms ease;
+  }
+  .wx-bot[data-mood="done"] .wx-bot-eye {
+    height: 0.6em;
+    border-radius: 0.6em 0.6em 0.15em 0.15em;
+  }
+
+  /* Floating supporting elements ------------------------------------------------------------------- */
+  .wx-float {
+    position: absolute;
+    z-index: 8;
+    display: none;
+    width: 14.5rem;
+    transform: perspective(900px) rotateY(var(--ry, 0deg));
+  }
+  .wx-chip {
+    --edge: color-mix(in oklch, var(--card), var(--foreground) 14%);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    padding: 0.7rem 0.85rem;
+    background:
+      linear-gradient(150deg, oklch(1 0 0 / 8%), transparent 45%),
+      color-mix(in oklch, var(--card) 95%, var(--primary));
+    color: var(--card-foreground);
+    box-shadow:
+      0 1px 0 var(--edge),
+      0 2px 0 var(--edge),
+      0 3px 0 color-mix(in oklch, var(--edge), var(--foreground) 8%),
+      0 4px 0 color-mix(in oklch, var(--edge), var(--foreground) 12%),
+      0 26px 44px -18px color-mix(in oklch, var(--primary) 40%, transparent),
+      0 12px 22px -14px oklch(0 0 0 / 28%);
+  }
+  .wx-chip-icon {
+    display: grid;
+    width: 2.1rem;
+    height: 2.1rem;
+    flex-shrink: 0;
+    place-items: center;
+    border-radius: 0.65rem;
+    color: var(--primary);
+    background: color-mix(in oklch, var(--primary) 13%, transparent);
+  }
+  .wx-chip-icon-ok {
+    color: var(--success);
+    background: color-mix(in oklch, var(--success) 14%, transparent);
+  }
+  .wx-ring {
+    display: grid;
+    width: 3rem;
+    height: 3rem;
+    flex-shrink: 0;
+    place-items: center;
+    border-radius: 50%;
+    background: conic-gradient(var(--primary) var(--p), var(--muted) 0);
+  }
+  .wx-ring-value {
+    display: grid;
+    width: 2.4rem;
+    height: 2.4rem;
+    place-items: center;
+    border-radius: 50%;
+    background: var(--card);
+    font-size: 0.875rem;
+    font-weight: 700;
+  }
+  .wx-vbar {
+    width: 0.45rem;
+    border-radius: 999px;
+    background: var(--muted);
+    transition: background-color 300ms ease;
+  }
+  .wx-vbar[data-on="true"] {
+    background: linear-gradient(to top, var(--primary), var(--brand-accent));
+  }
+  .wx-pseg {
+    height: 0.4rem;
+    border-radius: 999px;
+    background: var(--muted);
+    transition: background-color 400ms ease;
+  }
+  .wx-pseg[data-on="true"] {
+    background: var(--brand-accent);
+  }
+  .wx-float-grammar .wx-chip {
+    transition:
+      border-color 400ms ease,
+      box-shadow 400ms ease;
+  }
+  .wx-float-grammar[data-show="true"] .wx-chip {
+    border-color: color-mix(in oklch, var(--success) 45%, var(--border));
+  }
+
+  @media (min-width: 48rem) {
+    .wx-float-words,
+    .wx-float-grammar {
+      display: block;
+      width: 13rem;
+    }
+    .wx-float-words {
+      --ry: 10deg;
+      top: -9%;
+      left: 0;
+    }
+    .wx-float-grammar {
+      --ry: -10deg;
+      top: 84%;
+      right: 0;
+    }
+  }
+  @media (min-width: 64rem) {
+    .wx-float {
+      display: block;
+      width: 15rem;
+    }
+    .wx-float-words {
+      --ry: 12deg;
+      top: 6%;
+      left: 0;
+    }
+    .wx-float-vocab {
+      --ry: 12deg;
+      top: 70%;
+      left: 0.5%;
+    }
+    .wx-float-grammar {
+      --ry: -12deg;
+      top: 30%;
+      right: 0;
+    }
+    .wx-float-progress {
+      --ry: -12deg;
+      top: 72%;
+      right: 0.5%;
+    }
+  }
+}
+
+@keyframes wx-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes wx-bob {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -7px;
+  }
+}
+@keyframes wx-breathe {
+  0%,
+  100% {
+    scale: 1 1;
+  }
+  50% {
+    scale: 1.02 1.045;
+  }
+}
+@keyframes wx-blink-eye {
+  0%,
+  92%,
+  100% {
+    scale: 1 1;
+  }
+  95% {
+    scale: 1 0.1;
+  }
+}
+@keyframes wx-nod {
+  0%,
+  100% {
+    rotate: x 0deg;
+  }
+  25% {
+    rotate: x -14deg;
+  }
+  50% {
+    rotate: x 4deg;
+  }
+  75% {
+    rotate: x -10deg;
+  }
+}
+@keyframes wx-reveal {
+  from {
+    opacity: 0;
+    translate: 0 90px;
+    scale: 0.94;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .wx-bot-eye {
+    animation: wx-blink-eye 4.6s ease-in-out infinite;
+  }
+  .wx-bot[data-mood="done"] .wx-bot-nod {
+    animation: wx-nod 1.4s ease-in-out 300ms 1 both;
+  }
+  @media (min-width: 48rem) {
+    .wx-bot-body {
+      animation: wx-breathe 3.4s ease-in-out infinite;
+    }
+    .wx-float {
+      animation: wx-bob 7s ease-in-out infinite;
+    }
+    .wx-float-grammar {
+      animation-delay: -2.4s;
+    }
+    .wx-float-vocab {
+      animation-delay: -4.1s;
+    }
+    .wx-float-progress {
+      animation-delay: -1.3s;
+    }
+  }
+  @supports (animation-timeline: view()) {
+    .wx-reveal {
+      animation: wx-reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 65%;
+    }
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wx-rig,
+  .wx-rig * {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -1,0 +1,44 @@
+# --- Secrets & local config (never commit) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.import_linter_cache/
+.coverage
+coverage.xml
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# --- Node / Next.js ---
+# Generated and re-added by `next dev` (Next.js 16 agent notice, version-specific): not a project file.
+frontend/AGENTS.md
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+.pnpm-store/
+npm-debug.log*
+pnpm-debug.log*
+
+# --- Test artefacts ---
+playwright-report/
+test-results/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json

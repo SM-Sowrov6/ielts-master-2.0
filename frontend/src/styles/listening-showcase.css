@@ -1,0 +1,425 @@
+/*
+ * Module 01 · Listening: 3D MacBook showcase (CSS 3D only, no WebGL).
+ *
+ * Geometry: the lid stands on its bottom edge, tilted back; the base is rotated 90deg to lie
+ * flat in front of it; the whole device is turned three-quarters towards the text column.
+ * The screen is a container (`container-type: inline-size`): its app UI sets its font size from
+ * the screen width and re-scopes Tailwind's --spacing / --text-* variables to `em`, so the whole
+ * interface scales with the laptop and stays proportional on every screen size.
+ *
+ * Motion (all CSS, disabled under prefers-reduced-motion): scroll-driven reveal where supported,
+ * slow float, animated waveform, object float; pointer tilt via TiltScene (fine pointers only).
+ */
+
+@layer components {
+  .lx-section {
+    --mb-metal-light: color-mix(in oklch, var(--background) 92%, var(--foreground));
+    --mb-metal: color-mix(in oklch, var(--background) 82%, var(--foreground));
+    --mb-metal-dark: color-mix(in oklch, var(--background) 62%, var(--foreground));
+    --mb-key: color-mix(in oklch, var(--background) 30%, var(--foreground));
+    --mb-bezel: oklch(0.16 0.012 265);
+    --mb-edge: oklch(0.32 0.012 265);
+  }
+  .dark .lx-section {
+    --mb-metal-light: oklch(0.42 0.012 265);
+    --mb-metal: oklch(0.34 0.012 265);
+    --mb-metal-dark: oklch(0.24 0.012 265);
+    --mb-key: oklch(0.17 0.01 265);
+    --mb-edge: oklch(0.4 0.012 265);
+    --mb-pad: oklch(0.3 0.012 265);
+  }
+
+  .lx-glow {
+    background:
+      radial-gradient(
+        48% 42% at 55% 46%,
+        color-mix(in oklch, var(--primary) 22%, transparent),
+        transparent 72%
+      ),
+      radial-gradient(
+        30% 30% at 80% 75%,
+        color-mix(in oklch, var(--brand-accent) 12%, transparent),
+        transparent 70%
+      );
+  }
+
+  /* Stage and camera ------------------------------------------------------------------------ */
+  .lx-stage {
+    position: relative;
+    perspective: 2400px;
+    perspective-origin: 50% 20%;
+  }
+  .lx-scene {
+    position: relative;
+    transform-style: preserve-3d;
+    transform: rotateX(calc(var(--tilt-y, 0) * -2.5deg)) rotateY(calc(var(--tilt-x, 0) * 4deg));
+    transition: transform 900ms cubic-bezier(0.22, 0.8, 0.26, 1);
+  }
+  .lx-float {
+    position: relative;
+    transform-style: preserve-3d;
+  }
+
+  /* MacBook ------------------------------------------------------------------------------------ */
+  .lx-device {
+    --ry: -12deg;
+    position: relative;
+    width: 84%;
+    margin-inline: auto;
+    transform-style: preserve-3d;
+    transform: rotateX(-9deg) rotateY(var(--ry)) translateZ(0);
+  }
+  @media (min-width: 64rem) {
+    .lx-device {
+      --ry: -20deg;
+      width: 84%;
+      margin-inline: auto 2%;
+    }
+  }
+  .lx-lid {
+    position: relative;
+    aspect-ratio: 16 / 10.6;
+    transform-origin: 50% 100%;
+    transform: rotateX(-7deg);
+    transform-style: preserve-3d;
+    padding: 2.1% 2.1% 3.6%;
+    border-radius: 3.4% / 5.2%;
+    background: var(--mb-bezel);
+    box-shadow:
+      inset 0 0 0 1px var(--mb-edge),
+      0 0 0 1.5px var(--mb-metal-dark),
+      0 0 0 2.5px var(--mb-metal);
+  }
+  .lx-notch {
+    position: absolute;
+    top: 2.1%;
+    left: 50%;
+    z-index: 2;
+    width: 9%;
+    height: 3.2%;
+    translate: -50% 0;
+    border-radius: 0 0 0.45rem 0.45rem;
+    background: var(--mb-bezel);
+  }
+  .lx-notch::after {
+    content: "";
+    position: absolute;
+    top: 30%;
+    left: 50%;
+    width: 0.3rem;
+    height: 0.3rem;
+    translate: -50% 0;
+    border-radius: 50%;
+    background: oklch(0.3 0.03 263);
+  }
+  .lx-screen {
+    position: relative;
+    height: 100%;
+    overflow: hidden;
+    border-radius: 1.2% / 1.8%;
+    background: var(--background);
+    container-type: inline-size;
+  }
+  .lx-screen::after {
+    /* glass reflection */
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      118deg,
+      oklch(1 0 0 / 16%) 0%,
+      oklch(1 0 0 / 5%) 30%,
+      transparent 31%,
+      transparent 100%
+    );
+  }
+  .lx-base {
+    position: absolute;
+    top: 100%;
+    left: -2%;
+    right: -2%;
+    aspect-ratio: 1 / 0.6;
+    transform-origin: 50% 0;
+    transform: rotateX(90deg);
+    transform-style: preserve-3d;
+    border-radius: 1.2% 1.2% 6.5% 6.5% / 2% 2% 10.5% 10.5%;
+    background: linear-gradient(
+      to bottom,
+      var(--mb-metal-dark) 0%,
+      var(--mb-metal) 6%,
+      var(--mb-metal-light) 55%,
+      var(--mb-metal) 100%
+    );
+    box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--mb-metal-dark) 70%, transparent);
+  }
+  .lx-hinge {
+    position: absolute;
+    top: 0;
+    left: 8%;
+    right: 8%;
+    height: 3.5%;
+    border-radius: 0 0 0.4rem 0.4rem;
+    background: linear-gradient(to bottom, var(--mb-bezel), var(--mb-metal-dark));
+  }
+  .lx-keys {
+    position: absolute;
+    top: 8%;
+    left: 9%;
+    right: 9%;
+    height: 46%;
+    display: grid;
+    grid-template-columns: repeat(14, 1fr);
+    grid-template-rows: repeat(6, 1fr);
+    gap: 3.2% 0.9%;
+    padding: 1.6%;
+    border-radius: 0.5rem;
+    background: color-mix(in oklch, var(--mb-metal-dark) 55%, transparent);
+  }
+  .lx-keys span {
+    border-radius: 18%;
+    background: var(--mb-key);
+    box-shadow: inset 0 -1px 0 oklch(0 0 0 / 35%);
+  }
+  .lx-trackpad {
+    position: absolute;
+    top: 59%;
+    left: 31%;
+    right: 31%;
+    bottom: 7%;
+    border-radius: 0.6rem;
+    background: var(--mb-pad, color-mix(in oklch, var(--mb-metal) 85%, var(--foreground)));
+    box-shadow:
+      inset 0 0 0 1px color-mix(in oklch, var(--mb-metal-dark) 80%, transparent),
+      inset 0 2px 6px oklch(0 0 0 / 8%);
+  }
+  /* Solid rounded rim: stacked copies of the base outline below the deck, so the thickness
+     follows the rounded corners like a real unibody laptop (no separate front strip). */
+  .lx-rim {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    transform: translateZ(calc(var(--layer) * -0.9px));
+    background: color-mix(
+      in srgb,
+      var(--mb-metal) calc(100% - var(--layer) * 9%),
+      var(--mb-metal-dark)
+    );
+  }
+  .lx-rim:last-of-type {
+    box-shadow: 0 0 0 0.5px color-mix(in oklch, var(--mb-metal-dark) 80%, transparent);
+  }
+  .lx-floor {
+    position: absolute;
+    inset: 2% -10% -16% -10%;
+    transform: translateZ(-14px);
+    border-radius: 50%;
+    background: radial-gradient(
+      closest-side,
+      color-mix(in oklch, var(--foreground) 30%, transparent),
+      transparent
+    );
+    filter: blur(22px);
+  }
+
+  /* In-screen app: scales with the screen width -------------------------------------------- */
+  .lx-app {
+    font-size: calc(100cqw / 52);
+    --spacing: 0.25em;
+    --text-xs: 0.75em;
+    --text-sm: 0.875em;
+    --text-base: 1em;
+    --text-lg: 1.125em;
+    --text-xl: 1.25em;
+    --text-2xl: 1.5em;
+    height: 100%;
+    line-height: 1.4;
+  }
+  .lx-wave {
+    display: flex;
+    height: 100%;
+    align-items: center;
+    gap: 0.22em;
+  }
+  .lx-wave span {
+    flex: 1;
+    border-radius: 999px;
+    height: var(--h);
+    background: var(--bar, var(--primary));
+    transform-origin: 50% 50%;
+  }
+
+  /* Floating objects -------------------------------------------------------------------------- */
+  .lx-obj {
+    position: absolute;
+    z-index: 3;
+    transform-style: preserve-3d;
+    transform: translateZ(var(--z, 60px)) rotateY(var(--obj-ry, 0deg));
+  }
+  .lx-obj-inner {
+    transition:
+      translate 500ms cubic-bezier(0.22, 0.8, 0.26, 1),
+      box-shadow 500ms ease;
+  }
+  .lx-stage:hover .lx-obj-inner {
+    translate: 0 -6px;
+  }
+  .lx-card {
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    background: color-mix(in oklch, var(--card) 92%, transparent);
+    color: var(--card-foreground);
+    box-shadow: var(--elevation-float);
+    backdrop-filter: blur(10px);
+  }
+
+  /* 3D headphones: band + extruded ear cups */
+  .lx-hp {
+    position: relative;
+    width: 7.5rem;
+    height: 6.4rem;
+    transform-style: preserve-3d;
+    transform: rotateZ(-12deg) rotateY(28deg);
+  }
+  .lx-hp-band {
+    position: absolute;
+    top: 0;
+    left: 0.7rem;
+    right: 0.7rem;
+    height: 4.4rem;
+    border: 0.62rem solid color-mix(in oklch, var(--primary) 70%, black);
+    border-bottom: 0;
+    border-radius: 3.5rem 3.5rem 0 0;
+    box-shadow:
+      inset 0 2px 0 oklch(1 0 0 / 30%),
+      0 4px 10px oklch(0.2 0.06 263 / 25%);
+  }
+  .lx-hp-band::after {
+    /* padded top cushion */
+    content: "";
+    position: absolute;
+    top: -0.62rem;
+    left: 28%;
+    right: 28%;
+    height: 0.62rem;
+    border-radius: 999px;
+    background: color-mix(in oklch, var(--primary) 45%, black);
+  }
+  .lx-hp-cup {
+    position: absolute;
+    bottom: 0;
+    width: 2.4rem;
+    height: 3.2rem;
+    transform-style: preserve-3d;
+  }
+  .lx-hp-cup[data-side="left"] {
+    left: 0;
+  }
+  .lx-hp-cup[data-side="right"] {
+    right: 0;
+  }
+  .lx-hp-cup span {
+    position: absolute;
+    inset: 0;
+    border-radius: 42%;
+  }
+  .lx-hp-depth {
+    background: color-mix(in oklch, var(--primary) 55%, black);
+    transform: translateZ(calc(var(--layer) * -2px));
+  }
+  .lx-hp-face {
+    background: linear-gradient(
+      150deg,
+      color-mix(in oklch, var(--primary) 55%, white),
+      var(--primary) 50%,
+      color-mix(in oklch, var(--primary) 60%, black)
+    );
+    box-shadow:
+      inset 0 1px 0 oklch(1 0 0 / 50%),
+      inset 0 -5px 8px oklch(0 0 0 / 22%);
+  }
+  .lx-hp-face::after {
+    content: "";
+    position: absolute;
+    inset: 22% 26%;
+    border-radius: 45%;
+    background: color-mix(in oklch, var(--primary) 50%, black);
+    box-shadow: inset 0 2px 4px oklch(0 0 0 / 40%);
+  }
+  .lx-hp-shadow {
+    position: absolute;
+    left: 10%;
+    right: 10%;
+    bottom: -1.6rem;
+    height: 1rem;
+    border-radius: 50%;
+    background: radial-gradient(closest-side, oklch(0.25 0.06 263 / 30%), transparent);
+    filter: blur(3px);
+  }
+
+  .lx-ring {
+    background: conic-gradient(var(--primary) calc(var(--p) * 1%), var(--muted) 0);
+    mask: radial-gradient(closest-side, transparent 68%, black 70%);
+  }
+}
+
+@keyframes lx-float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -10px;
+  }
+}
+@keyframes lx-obj-float {
+  0%,
+  100% {
+    translate: 0 0;
+  }
+  50% {
+    translate: 0 -8px;
+  }
+}
+@keyframes lx-wave {
+  0%,
+  100% {
+    scale: 1 0.55;
+  }
+  50% {
+    scale: 1 1;
+  }
+}
+@keyframes lx-reveal {
+  from {
+    opacity: 0;
+    translate: 0 72px;
+    scale: 0.94;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+    scale: 1;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lx-float {
+    animation: lx-float 9s ease-in-out infinite;
+  }
+  .lx-obj > .lx-bob {
+    animation: lx-obj-float 7s ease-in-out infinite;
+    animation-delay: var(--delay, 0s);
+  }
+  .lx-wave span {
+    animation: lx-wave 1.4s ease-in-out infinite;
+    animation-delay: var(--d, 0s);
+  }
+  @supports (animation-timeline: view()) {
+    .lx-reveal {
+      animation: lx-reveal linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 85%;
+    }
+  }
+}

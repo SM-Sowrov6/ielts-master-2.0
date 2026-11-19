@@ -1,0 +1,16 @@
+# Build context for the backend image is the repo root: send only what the image needs.
+.git
+.env
+.env.*
+**/.venv
+**/__pycache__
+**/.mypy_cache
+**/.ruff_cache
+**/.pytest_cache
+**/node_modules
+frontend
+docs
+tests
+scripts
+infrastructure
+**/tests

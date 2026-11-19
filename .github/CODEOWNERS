@@ -1,0 +1,15 @@
+# Code owners (docs/SYSTEM_ARCHITECTURE.md §10, docs/DEVELOPMENT_GUIDELINES.md §6.4).
+# Owners are not assigned yet. Replace the placeholders with real GitHub users/teams, then
+# uncomment. GitHub ignores commented lines, so this file currently has no effect.
+#
+# *                          @<tech-lead>
+# /frontend/                 @<frontend-lead>
+# /backend/app/modules/identity/  @<backend-lead>
+# /backend/app/modules/billing/   @<backend-lead>
+# /backend/app/modules/exams/     @<exams-owner>
+# /backend/migrations/       @<db-owner>
+# /ai-engine/                @<ai-engineer>
+# /voice-engine/             @<ai-engineer>
+# /infrastructure/           @<devops>
+# /.github/                  @<devops>
+# /docs/                     @<tech-lead>

@@ -1,0 +1,199 @@
+# Phase 2 CI foundation: lint, types, tests, secret scan, dependency audit, compose validation.
+# Actions are pinned to full commit SHAs (version in the trailing comment).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  UV_VERSION: "0.13.9"
+  NODE_VERSION: "26.13.1"
+  COREPACK_VERSION: "0.36.0"
+
+jobs:
+  backend:
+    name: Python — lint, types, boundaries, tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: pgvector/pgvector:0.8.1-pg18-trixie
+        env:
+          POSTGRES_USER: ielts
+          POSTGRES_PASSWORD: ci-only-not-a-secret
+          POSTGRES_DB: postgres
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ielts" --health-interval 5s --health-timeout 3s --health-retries 10
+      redis:
+        image: redis:8.2.3-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      # Integration tests create/drop their own `ielts_test` database; required (no silent skips).
+      TEST_DATABASE_ADMIN_URL: postgresql://ielts:ci-only-not-a-secret@127.0.0.1:5432/postgres
+      TEST_REDIS_URL: redis://127.0.0.1:6379/0
+      REQUIRE_INTEGRATION_TESTS: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: "3.14"
+          enable-cache: true
+      - name: Install workspace (frozen lockfile)
+        run: uv sync --all-packages --frozen
+      - name: Ruff lint
+        run: uv run ruff check .
+      - name: Ruff format check
+        run: uv run ruff format --check .
+      - name: Mypy (strict) — sources
+        run: |
+          uv run mypy backend/app ai-engine/ielts_ai voice-engine/ielts_voice
+          uv run mypy backend/migrations
+          uv run mypy scripts
+      - name: Mypy (strict) — tests
+        run: |
+          uv run mypy backend/tests
+          uv run mypy ai-engine/tests
+          uv run mypy voice-engine/tests
+      - name: Module boundaries (import-linter)
+        run: uv run lint-imports
+      - name: Migrations — single head
+        env:
+          DATABASE_URL: postgresql://unused:unused@127.0.0.1:9/unused   # `heads` reads scripts only
+        run: test "$(uv run alembic -c backend/alembic.ini heads | wc -l)" -eq 1
+      - name: Tests (unit + integration incl. migration upgrade/downgrade roundtrip)
+        run: uv run pytest
+
+  frontend:
+    name: Frontend — lint, types, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Enable pnpm via Corepack (not bundled with Node >= 25)
+        run: |
+          npm install --global corepack@${{ env.COREPACK_VERSION }}
+          corepack enable pnpm
+          pnpm --version
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+      - name: Prettier
+        run: pnpm format:check
+      - name: ESLint
+        run: pnpm lint
+      - name: TypeScript
+        run: pnpm typecheck
+      - name: Component tests (Vitest + axe-core)
+        run: pnpm test
+      - name: Design-token contrast (WCAG AA)
+        run: python3 -I ../scripts/check_contrast.py
+      - name: Production build
+        run: pnpm build
+
+  api-contract:
+    name: API contract — OpenAPI types up to date
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: "3.14"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Export OpenAPI from the backend and regenerate TypeScript types
+        run: |
+          uv sync --all-packages --frozen
+          uv run python scripts/export_openapi.py
+          npm install --global corepack@${{ env.COREPACK_VERSION }}
+          corepack enable pnpm
+          cd frontend && pnpm install --frozen-lockfile && pnpm api:generate
+      - name: Fail if generated files differ from the committed ones
+        run: git diff --exit-code -- frontend/src/lib/api/openapi.json frontend/src/lib/api/schema.d.ts
+
+  secret-scan:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Required only if the repository is owned by a GitHub organization:
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+  dependency-audit:
+    name: Dependency vulnerability audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: "3.14"
+      - name: Python dependencies (pip-audit against the lockfile)
+        run: |
+          uv export --frozen --all-packages --no-emit-workspace --no-hashes --format requirements-txt -o "$RUNNER_TEMP/requirements.txt"
+          uvx pip-audit --strict --disable-pip --no-deps -r "$RUNNER_TEMP/requirements.txt"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Enable pnpm via Corepack
+        working-directory: frontend
+        run: |
+          npm install --global corepack@${{ env.COREPACK_VERSION }}
+          corepack enable pnpm
+      # BLOCKING gate: production dependencies (everything in the standalone image; verified
+      # 2026-11-18 that every shipped package is in the prod tree). Never relax this step.
+      - name: Node production dependencies (pnpm audit --prod, BLOCKING at high)
+        working-directory: frontend
+        run: pnpm audit --prod --audit-level high
+      # NON-BLOCKING, always visible: dev tooling (ESLint, Vitest, …). Accepted risk AR-001
+      # (picomatch GHSA-fc5q-39xc-vjpf, no patched version yet) — docs/SECURITY_GUIDELINES.md §14.1.
+      # Findings are printed in full and raised as a warning annotation; nothing is ignored.
+      - name: Node development dependencies (pnpm audit --dev, non-blocking, reported)
+        working-directory: frontend
+        run: |
+          set +e
+          pnpm audit --dev --audit-level moderate
+          status=$?
+          if [ "$status" -ne 0 ]; then
+            echo "::warning title=Dev dependency vulnerabilities (non-blocking)::pnpm audit --dev reported findings (see log). Tracked as accepted risk AR-001 in docs/SECURITY_GUIDELINES.md §14.1."
+          fi
+          exit 0
+
+  compose-config:
+    name: Docker Compose configuration
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate docker-compose.yml (placeholder secrets, never used)
+        env:
+          POSTGRES_PASSWORD: ci-validation-only
+          AUTH_SECRET_KEY: ci-validation-only-not-a-real-secret-value
+        run: docker compose config --quiet

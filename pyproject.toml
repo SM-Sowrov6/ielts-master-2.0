@@ -1,0 +1,201 @@
+# uv workspace root (virtual — not itself a package). See docs/SYSTEM_ARCHITECTURE.md §2.
+[tool.uv.workspace]
+members = ["backend", "ai-engine", "voice-engine"]
+
+[tool.uv.sources]
+ielts-ai = { workspace = true }
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28",
+    "hypothesis>=6.170.15",
+    "import-linter>=2.5",
+    "mypy>=1.19",
+    "pytest>=8.4",
+    "pytest-asyncio>=1.2",
+    "ruff>=0.14",
+]
+
+# ---------------------------------------------------------------- ruff
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+extend-exclude = ["frontend", "docs"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "S", "SIM", "RUF", "ASYNC", "PT", "N"]
+ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["app", "ielts_ai", "ielts_voice"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**" = ["S101", "S105", "S106"]   # assert is idiomatic; fake test credentials
+"backend/migrations/versions/*" = ["E501", "S608"]
+"voice-engine/ielts_voice/agent.py" = ["E501"]  # the examiner prompt is prose inside an f-string  # DDL strings; built only from in-file constants, no external input
+
+# ---------------------------------------------------------------- mypy
+[tool.mypy]
+python_version = "3.14"
+strict = true
+warn_unreachable = true
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+# asyncpg ships no type information; revisit with SQLAlchemy in Phase 3.
+module = ["asyncpg", "asyncpg.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# boto3/botocore ship no type information; used only behind app/core/storage.py.
+module = ["boto3", "boto3.*", "botocore", "botocore.*"]
+ignore_missing_imports = true
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = false  # pydantic coerces str -> DSN/enum at runtime
+warn_required_dynamic_aliases = true
+
+# ---------------------------------------------------------------- pytest
+[tool.pytest.ini_options]
+addopts = "--import-mode=importlib -ra"
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["backend/tests", "ai-engine/tests", "voice-engine/tests"]
+pythonpath = ["backend/tests"]  # shared test helpers (probe_models)
+markers = [
+    "integration: needs real PostgreSQL/Redis (TEST_DATABASE_ADMIN_URL, TEST_REDIS_URL)",
+]
+
+# ---------------------------------------------------------------- import-linter (module boundaries)
+[tool.importlinter]
+root_packages = ["app", "ielts_ai", "ielts_voice"]
+
+[[tool.importlinter.contracts]]
+name = "ai-engine is a pure library: no backend or voice-engine imports (ADR-003)"
+type = "forbidden"
+source_modules = ["ielts_ai"]
+forbidden_modules = ["app", "ielts_voice"]
+
+[[tool.importlinter.contracts]]
+name = "voice-engine talks to backend only over HTTP (ADR-004)"
+type = "forbidden"
+source_modules = ["ielts_voice"]
+forbidden_modules = ["app"]
+
+[[tool.importlinter.contracts]]
+name = "Kernel (core, shared) does not depend on domain modules"
+type = "forbidden"
+source_modules = ["app.core", "app.shared"]
+forbidden_modules = ["app.modules"]
+
+[[tool.importlinter.contracts]]
+name = "Domain modules are independent until their public api.py interfaces are used (audit excepted)"
+type = "independence"
+modules = [
+    "app.modules.identity",
+    "app.modules.content",
+    "app.modules.exams",
+    "app.modules.writing",
+    "app.modules.speaking",
+    "app.modules.analytics",
+    "app.modules.coach",
+    "app.modules.billing",
+    "app.modules.ai_ops",
+    "app.modules.notifications",
+]
+# The exams module consumes content and identity through their public api.py only.
+ignore_imports = [
+    "app.modules.exams.** -> app.modules.content.api",
+    "app.modules.exams.** -> app.modules.identity.api",
+    "app.modules.writing.** -> app.modules.content.api",
+    "app.modules.writing.** -> app.modules.identity.api",
+    "app.modules.speaking.** -> app.modules.content.api",
+    "app.modules.speaking.** -> app.modules.identity.api",
+]
+
+[[tool.importlinter.contracts]]
+name = "Audit is a leaf: it imports no domain module"
+type = "forbidden"
+source_modules = ["app.modules.audit"]
+forbidden_modules = [
+    "app.modules.identity",
+    "app.modules.content",
+    "app.modules.exams",
+    "app.modules.writing",
+    "app.modules.speaking",
+    "app.modules.analytics",
+    "app.modules.coach",
+    "app.modules.billing",
+    "app.modules.ai_ops",
+    "app.modules.notifications",
+]
+
+[[tool.importlinter.contracts]]
+name = "Modules use audit only through its public api (universal write-only dependency)"
+type = "forbidden"
+source_modules = [
+    "app.modules.identity",
+    "app.modules.content",
+    "app.modules.exams",
+    "app.modules.writing",
+    "app.modules.speaking",
+    "app.modules.analytics",
+    "app.modules.coach",
+    "app.modules.billing",
+    "app.modules.ai_ops",
+    "app.modules.notifications",
+]
+forbidden_modules = ["app.modules.audit.models"]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Admin console is a composition layer: domain modules never import it"
+type = "forbidden"
+source_modules = [
+    "app.modules.identity",
+    "app.modules.content",
+    "app.modules.audit",
+    "app.modules.exams",
+    "app.modules.writing",
+    "app.modules.speaking",
+    "app.modules.analytics",
+    "app.modules.coach",
+    "app.modules.billing",
+    "app.modules.ai_ops",
+    "app.modules.notifications",
+]
+forbidden_modules = ["app.modules.admin"]
+
+[[tool.importlinter.contracts]]
+name = "Admin console reads other modules only through their public api.py"
+type = "forbidden"
+source_modules = ["app.modules.admin"]
+forbidden_modules = [
+    "app.modules.*.models",
+    "app.modules.*.service",
+    "app.modules.*.sessions",
+    "app.modules.*.provisioning",
+    "app.modules.*.directory",
+    "app.modules.*.overview",
+    "app.modules.*.deps",
+]
+allow_indirect_imports = true
+
+[[tool.importlinter.contracts]]
+name = "Exams reads content and identity only through their public api.py"
+type = "forbidden"
+source_modules = ["app.modules.exams"]
+forbidden_modules = [
+    "app.modules.content.models",
+    "app.modules.content.service",
+    "app.modules.content.delivery",
+    "app.modules.content.authoring",
+    "app.modules.content.media",
+    "app.modules.content.question_types",
+    "app.modules.identity.models",
+    "app.modules.identity.service",
+    "app.modules.identity.sessions",
+    "app.modules.identity.deps",
+]
+allow_indirect_imports = true

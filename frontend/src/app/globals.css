@@ -1,0 +1,226 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "../styles/shadcn.css";
+@import "../styles/marketing.css";
+@import "../styles/listening-showcase.css";
+@import "../styles/reading-showcase.css";
+@import "../styles/writing-showcase.css";
+@import "../styles/speaking-showcase.css";
+@import "../styles/coach-showcase.css";
+@import "../styles/landing-sections.css";
+
+/*
+ * IELTS MASTER 2.0 design tokens (docs/FRONTEND_DESIGN_SYSTEM.md).
+ * Components use semantic tokens only (bg-background, text-muted-foreground, border-input, …),
+ * never raw colours. Contrast is verified for both themes: `python -I scripts/check_contrast.py`.
+ * Brand palette (decided 2026-11-18): Royal Blue #2563EB (primary, derived from --brand-hue) and
+ * Emerald #10B981 (--brand-accent). Emerald is only 2.5:1 on white, so it is DECORATIVE ONLY
+ * (fills, glows, illustrations); success text uses the darker --success (#047857-equivalent).
+ * Neutrals are the cool slate family (#0F172A text, #E2E8F0 borders, #F8FAFC surfaces).
+ */
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  /* Typography */
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-heading: var(--font-sans);
+
+  /* Semantic colours (mapped to Tailwind utilities) */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-surface: var(--surface);
+  --color-brand-accent: var(--brand-accent);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Radius scale */
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Elevation (theme-aware): shadow-elevation-1 cards, -2 hover/focus, -3 overlays, -float 3D layers */
+  --shadow-elevation-1: var(--elevation-1);
+  --shadow-elevation-2: var(--elevation-2);
+  --shadow-elevation-3: var(--elevation-3);
+  --shadow-elevation-float: var(--elevation-float);
+}
+
+/*
+ * Layout & motion tokens. Breakpoints are Tailwind defaults (sm 40rem, md 48rem, lg 64rem,
+ * xl 80rem, 2xl 96rem). Spacing is Tailwind's 0.25rem scale. Sizes are in rem, so the browser
+ * text-size setting and zoom scale the whole UI (WCAG 1.4.4).
+ */
+@theme {
+  --spacing-header: 3.5rem;
+  --spacing-sidebar: 16rem;
+  --container-content: 72rem;
+  --container-wide: 80rem;
+  --container-prose: 42rem;
+  --z-index-header: 40;
+  --z-index-overlay: 50;
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+}
+
+:root {
+  --brand-hue: 263; /* Royal Blue #2563EB; re-run the contrast check after changing */
+  --radius: 0.5rem;
+
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.208 0.042 265.755);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.208 0.042 265.755);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.208 0.042 265.755);
+  --primary: oklch(0.546 0.215 var(--brand-hue));
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.968 0.007 247.896);
+  --secondary-foreground: oklch(0.279 0.041 260.031);
+  --muted: oklch(0.968 0.007 247.896);
+  --muted-foreground: oklch(0.5 0.044 257);
+  --accent: oklch(0.97 0.017 var(--brand-hue));
+  --accent-foreground: oklch(0.488 0.217 var(--brand-hue));
+  --destructive: oklch(0.53 0.2 27);
+  --success: oklch(0.508 0.118 165.6);
+  --warning: oklch(0.5 0.11 70);
+  --info: oklch(0.48 0.13 250);
+  --border: oklch(0.929 0.013 255.508);
+  --input: oklch(0.62 0.03 257);
+  --ring: oklch(0.546 0.215 var(--brand-hue));
+  --surface: oklch(0.984 0.003 247.858);
+  --brand-accent: oklch(0.696 0.149 162.48);
+  --chart-1: oklch(0.546 0.215 var(--brand-hue));
+  --chart-2: oklch(0.696 0.149 162.48);
+  --chart-3: oklch(0.65 0.15 70);
+  --chart-4: oklch(0.55 0.18 330);
+  --chart-5: oklch(0.5 0.02 257);
+  --sidebar: oklch(0.984 0.003 247.858);
+  --sidebar-foreground: oklch(0.208 0.042 265.755);
+  --sidebar-primary: oklch(0.546 0.215 var(--brand-hue));
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.95 0.025 var(--brand-hue));
+  --sidebar-accent-foreground: oklch(0.208 0.042 265.755);
+  --sidebar-border: oklch(0.929 0.013 255.508);
+  --sidebar-ring: oklch(0.546 0.215 var(--brand-hue));
+
+  --elevation-1: 0 1px 2px 0 oklch(0.208 0.042 265.755 / 4%);
+  --elevation-2:
+    0 4px 12px -2px oklch(0.208 0.042 265.755 / 6%), 0 2px 4px -1px oklch(0.208 0.042 265.755 / 3%);
+  --elevation-3:
+    0 12px 24px -4px oklch(0.208 0.042 265.755 / 8%), 0 4px 8px -2px oklch(0.208 0.042 265.755 / 4%);
+  --elevation-float:
+    0 32px 64px -16px oklch(0.4 0.12 var(--brand-hue) / 22%),
+    0 16px 32px -16px oklch(0.208 0.042 265.755 / 18%), 0 0 0 1px oklch(0.208 0.042 265.755 / 4%);
+}
+
+.dark {
+  --background: oklch(0.155 0.03 265);
+  --foreground: oklch(0.984 0.003 247.858);
+  --card: oklch(0.205 0.035 265);
+  --card-foreground: oklch(0.984 0.003 247.858);
+  --popover: oklch(0.205 0.035 265);
+  --popover-foreground: oklch(0.984 0.003 247.858);
+  --primary: oklch(0.72 0.15 var(--brand-hue));
+  --primary-foreground: oklch(0.17 0.04 var(--brand-hue));
+  --secondary: oklch(0.27 0.035 265);
+  --secondary-foreground: oklch(0.984 0.003 247.858);
+  --muted: oklch(0.27 0.035 265);
+  --muted-foreground: oklch(0.76 0.025 257);
+  --accent: oklch(0.3 0.06 var(--brand-hue));
+  --accent-foreground: oklch(0.93 0.04 var(--brand-hue));
+  --destructive: oklch(0.72 0.17 22);
+  --success: oklch(0.78 0.14 163);
+  --warning: oklch(0.8 0.13 80);
+  --info: oklch(0.74 0.12 250);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(0.58 0.03 257);
+  --ring: oklch(0.72 0.15 var(--brand-hue));
+  --surface: oklch(0.18 0.032 265);
+  --brand-accent: oklch(0.78 0.15 163);
+  --chart-1: oklch(0.72 0.15 var(--brand-hue));
+  --chart-2: oklch(0.78 0.15 163);
+  --chart-3: oklch(0.78 0.13 70);
+  --chart-4: oklch(0.7 0.16 330);
+  --chart-5: oklch(0.7 0.02 257);
+  --sidebar: oklch(0.18 0.032 265);
+  --sidebar-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-primary: oklch(0.72 0.15 var(--brand-hue));
+  --sidebar-primary-foreground: oklch(0.17 0.04 var(--brand-hue));
+  --sidebar-accent: oklch(0.3 0.06 var(--brand-hue));
+  --sidebar-accent-foreground: oklch(0.984 0.003 247.858);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.72 0.15 var(--brand-hue));
+
+  --elevation-1: 0 1px 2px 0 oklch(0 0 0 / 30%);
+  --elevation-2: 0 4px 12px -2px oklch(0 0 0 / 40%), 0 2px 4px -1px oklch(0 0 0 / 25%);
+  --elevation-3: 0 12px 24px -4px oklch(0 0 0 / 45%), 0 4px 8px -2px oklch(0 0 0 / 30%);
+  --elevation-float:
+    0 32px 64px -16px oklch(0 0 0 / 60%), 0 0 48px -12px oklch(0.72 0.15 var(--brand-hue) / 18%),
+    0 0 0 1px oklch(1 0 0 / 7%);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    @apply font-sans;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+  }
+  /* Visible keyboard focus for any focusable element that has no component-level style. */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+/* Respect reduced-motion preferences everywhere (docs/DEVELOPMENT_GUIDELINES.md §3). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
