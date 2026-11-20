@@ -119,6 +119,26 @@ class Settings(DatabaseSettings):
     # AI evaluation provider (Google AI Studio key). Unset = evaluations end "unavailable".
     gemini_api_key: SecretStr | None = None
     gemini_model: str = "gemini-3.5-flash"
+    # Site assistant (floating chat widget). OpenRouter free models first; without an OpenRouter
+    # key the assistant falls back to the Gemini key above; with neither it answers 503.
+    assistant_enabled: bool = True
+    openrouter_api_key: SecretStr | None = None
+    # Comma-separated OpenRouter model IDs, tried in order. Only free models (":free" suffix or
+    # the "openrouter/free" router) are accepted, so no paid usage can be configured by mistake.
+    assistant_models: str = (
+        "google/gemma-4-26b-a4b-it:free,google/gemma-4-31b-it:free,"
+        "nvidia/nemotron-3.5-lightning:free,nvidia/nemotron-3-ultra-550b-a55b:free"
+    )
+    # OpenRouter reasoning ("thinking"): off, on (provider default), or an effort level.
+    # Reasoning text is excluded from the reply and never shown; it costs time and tokens.
+    assistant_reasoning: Literal["off", "on", "low", "medium", "high"] = "on"
+    assistant_timeout_seconds: float = Field(default=25.0, gt=1, le=120)
+    assistant_max_output_tokens: int = Field(default=700, ge=64, le=4000)
+    # Per-window message limits (fixed windows in Redis).
+    assistant_guest_per_minute: int = Field(default=6, ge=1, le=600)
+    assistant_guest_per_day: int = Field(default=40, ge=1, le=100_000)
+    assistant_user_per_minute: int = Field(default=12, ge=1, le=600)
+    assistant_user_per_day: int = Field(default=200, ge=1, le=100_000)
     # LiveKit (AI Speaking Room voice). All three are needed; server-side only.
     livekit_url: str | None = None
     livekit_api_key: str | None = None
@@ -184,6 +204,10 @@ class Settings(DatabaseSettings):
         )
 
     @property
+    def assistant_model_list(self) -> tuple[str, ...]:
+        return tuple(m.strip() for m in self.assistant_models.split(",") if m.strip())
+
+    @property
     def app_origin(self) -> str:
         url = self.public_app_url
         port = f":{url.port}" if url.port and url.port not in (80, 443) else ""
@@ -195,6 +219,11 @@ class Settings(DatabaseSettings):
             raise ValueError("LOG_LEVEL=DEBUG is not allowed when APP_ENV=production")
         if self.session_absolute_ttl_seconds < self.session_idle_ttl_seconds:
             raise ValueError("SESSION_ABSOLUTE_TTL_SECONDS must be >= SESSION_IDLE_TTL_SECONDS")
+        for model in self.assistant_model_list:
+            if not (model.endswith(":free") or model == "openrouter/free"):
+                raise ValueError(
+                    f"ASSISTANT_MODELS may only list free OpenRouter models (got {model!r})"
+                )
         key = self.auth_secret_key.get_secret_value() if self.auth_secret_key else None
         if key is not None and len(key) < 32:
             raise ValueError("AUTH_SECRET_KEY must be at least 32 characters")

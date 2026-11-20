@@ -5,7 +5,7 @@ dependencies. The application factory calls `install`; the outbox worker uses th
 cleanup.
 """
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from redis.asyncio import Redis
 
 from app.core.config import Settings
@@ -21,7 +21,7 @@ from app.modules.identity.deps import (
 from app.modules.identity.directory import UserOverview, display_names, user_overview
 from app.modules.identity.emails import OUTBOX_HANDLERS, cleanup
 from app.modules.identity.passwords import PasswordService
-from app.modules.identity.ratelimit import RateLimiter
+from app.modules.identity.ratelimit import RateLimiter, Rule
 from app.modules.identity.router import router
 from app.modules.identity.service import AuthRuntime
 from app.modules.identity.sessions import CurrentUser
@@ -31,6 +31,8 @@ __all__ = [
     "OUTBOX_HANDLERS",
     "VOICE_CONSENT_VERSION",
     "CurrentUser",
+    "RateLimiter",
+    "Rule",
     "UserOverview",
     "cleanup",
     "current_user",
@@ -38,11 +40,18 @@ __all__ = [
     "grant_voice_consents",
     "install",
     "optional_current_user",
+    "rate_limiter",
     "require_permission",
     "require_staff",
     "require_staff_permission",
     "user_overview",
 ]
+
+
+def rate_limiter(request: Request) -> RateLimiter:
+    """The shared Redis rate limiter, for other modules' quotas (hashed subjects, fixed windows)."""
+    runtime: AuthRuntime = request.app.state.auth
+    return runtime.limiter
 
 
 def install(app: FastAPI, settings: Settings) -> None:

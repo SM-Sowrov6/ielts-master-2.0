@@ -44,4 +44,8 @@ def test_shipped_prompt_directory_loads() -> None:
     import ielts_ai.prompts as prompts_pkg
 
     root = Path(prompts_pkg.__file__).parent
-    assert PromptRegistry.from_directory(root).keys() == ["speaking.evaluate", "writing.evaluate"]
+    assert PromptRegistry.from_directory(root).keys() == [
+        "assistant.chat",
+        "speaking.evaluate",
+        "writing.evaluate",
+    ]

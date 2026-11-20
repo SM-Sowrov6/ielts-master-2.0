@@ -636,6 +636,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/assistant/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Chat */
+        post: operations["chat_api_v1_assistant_chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/assistant/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Status */
+        get: operations["status_api_v1_assistant_status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/attempts": {
         parameters: {
             query?: never;
@@ -1886,6 +1920,23 @@ export interface components {
             /** New Password */
             new_password: string;
         };
+        /** ChatIn */
+        ChatIn: {
+            /** Messages */
+            messages: components["schemas"]["MessageIn"][];
+            page?: components["schemas"]["PageIn"] | null;
+        };
+        /** ChatOut */
+        ChatOut: {
+            /** Content */
+            content: string;
+            /**
+             * Role
+             * @default assistant
+             * @constant
+             */
+            role: "assistant";
+        };
         /** ConfigOut */
         ConfigOut: {
             body: components["schemas"]["ExaminerConfigBody"];
@@ -2760,6 +2811,16 @@ export interface components {
             /** Url */
             url: string;
         };
+        /** MessageIn */
+        MessageIn: {
+            /** Content */
+            content: string;
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "assistant";
+        };
         /** MfaCodeRequest */
         MfaCodeRequest: {
             /** Code */
@@ -2830,6 +2891,14 @@ export interface components {
             label: string;
             /** Text */
             text: string;
+        };
+        /**
+         * PageIn
+         * @description Only the path is accepted; the server maps it to a curated description.
+         */
+        PageIn: {
+            /** Path */
+            path: string;
         };
         /** ParagraphIn */
         ParagraphIn: {
@@ -3711,6 +3780,11 @@ export interface components {
              * @constant
              */
             voice_processing_consent: true;
+        };
+        /** StatusOut */
+        StatusOut: {
+            /** Available */
+            available: boolean;
         };
         /** StoredAnswerOut */
         StoredAnswerOut: {
@@ -6838,6 +6912,77 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": unknown;
+                };
+            };
+        };
+    };
+    chat_api_v1_assistant_chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ChatOut"];
+                };
+            };
+            /** @description Problem */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Problem */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+            /** @description Problem */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": unknown;
+                };
+            };
+        };
+    };
+    status_api_v1_assistant_status_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StatusOut"];
                 };
             };
         };

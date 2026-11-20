@@ -141,6 +141,17 @@ Internal (voice engine, service token scoped to one session):
 
 Webhooks: `POST /api/v1/webhooks/livekit` (signature verified).
 
+## 6a. Site assistant — `/assistant` (implemented 2026-11-20)
+
+Floating chat widget on public and student pages (hidden on exam rooms, the Writing editor, Speaking sessions/rooms and `/admin`). No persistence: the conversation lives in the browser tab's `sessionStorage`, keyed by user id.
+
+| Method | Path | Auth | Notes |
+|---|---|---|---|
+| GET | `/assistant/status` | public | `{available}`: whether a provider is configured (`OPENROUTER_API_KEY`, else `GEMINI_API_KEY`) |
+| POST | `/assistant/chat` | public (CSRF) | body `{messages: [{role: user\|assistant, content}] (1–20, last = user, ≤ 2000 chars), page?: {path}}` → `{role: "assistant", content}` (Markdown subset). Quotas: per user id when signed in (12/min, 200/day), per client IP for guests (6/min, 40/day); `429 assistant_rate_limited` + `Retry-After`. `503 assistant_busy` (free models rate limited upstream / timeout, `Retry-After`), `503 assistant_unavailable` (no provider or provider error). Fails closed (503) if Redis is down |
+
+Privacy: only the path is accepted as page context and the server replaces it with a curated description (`modules/assistant/knowledge.py`); the only user detail sent to the model is a signed-in user's first name. Message text is never logged.
+
 ## 7. Coach & Analytics — `/me/dashboard`, `/coach`
 
 | Method | Path | Auth |

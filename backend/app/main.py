@@ -16,6 +16,7 @@ from app.core.health import router as health_router
 from app.core.logging import configure_logging
 from app.core.request_context import RequestContextMiddleware
 from app.modules.admin import api as admin
+from app.modules.assistant import api as assistant
 from app.modules.exams import api as exams
 from app.modules.identity import api as identity
 from app.modules.speaking import api as speaking
@@ -57,5 +58,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     writing.install(app)  # candidate Writing drafts, submissions and AI evaluations
     speaking.install(app)  # candidate Speaking sessions, recordings and AI evaluations
     exams.install(app)  # candidate Listening practice and attempts (owner-only)
+    assistant.install(app)  # floating site assistant (guests and users; no persistence)
     app.add_middleware(RequestContextMiddleware)
     return app

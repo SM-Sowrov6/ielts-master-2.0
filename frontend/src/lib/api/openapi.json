@@ -776,6 +776,54 @@
         "title": "ChangePasswordRequest",
         "type": "object"
       },
+      "ChatIn": {
+        "additionalProperties": false,
+        "properties": {
+          "messages": {
+            "items": {
+              "$ref": "#/components/schemas/MessageIn"
+            },
+            "maxItems": 20,
+            "minItems": 1,
+            "title": "Messages",
+            "type": "array"
+          },
+          "page": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PageIn"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "messages"
+        ],
+        "title": "ChatIn",
+        "type": "object"
+      },
+      "ChatOut": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "role": {
+            "const": "assistant",
+            "default": "assistant",
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "content"
+        ],
+        "title": "ChatOut",
+        "type": "object"
+      },
       "ConfigOut": {
         "properties": {
           "body": {
@@ -3177,6 +3225,31 @@
         "title": "MediaUrlOut",
         "type": "object"
       },
+      "MessageIn": {
+        "additionalProperties": false,
+        "properties": {
+          "content": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Content",
+            "type": "string"
+          },
+          "role": {
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "content"
+        ],
+        "title": "MessageIn",
+        "type": "object"
+      },
       "MfaCodeRequest": {
         "properties": {
           "code": {
@@ -3402,6 +3475,24 @@
           "text"
         ],
         "title": "OptionIn",
+        "type": "object"
+      },
+      "PageIn": {
+        "additionalProperties": false,
+        "description": "Only the path is accepted; the server maps it to a curated description.",
+        "properties": {
+          "path": {
+            "maxLength": 300,
+            "minLength": 1,
+            "pattern": "^/",
+            "title": "Path",
+            "type": "string"
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "title": "PageIn",
         "type": "object"
       },
       "ParagraphIn": {
@@ -5978,6 +6069,19 @@
           "audio_recording_consent"
         ],
         "title": "StartSessionIn",
+        "type": "object"
+      },
+      "StatusOut": {
+        "properties": {
+          "available": {
+            "title": "Available",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "available"
+        ],
+        "title": "StatusOut",
         "type": "object"
       },
       "StoredAnswerOut": {
@@ -9942,6 +10046,76 @@
         "summary": "Speaking Tests",
         "tags": [
           "admin-speaking"
+        ]
+      }
+    },
+    "/api/v1/assistant/chat": {
+      "post": {
+        "operationId": "chat_api_v1_assistant_chat_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/problem+json": {}
+            },
+            "description": "Problem"
+          },
+          "429": {
+            "content": {
+              "application/problem+json": {}
+            },
+            "description": "Problem"
+          },
+          "503": {
+            "content": {
+              "application/problem+json": {}
+            },
+            "description": "Problem"
+          }
+        },
+        "summary": "Chat",
+        "tags": [
+          "assistant"
+        ]
+      }
+    },
+    "/api/v1/assistant/status": {
+      "get": {
+        "operationId": "status_api_v1_assistant_status_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Status",
+        "tags": [
+          "assistant"
         ]
       }
     },

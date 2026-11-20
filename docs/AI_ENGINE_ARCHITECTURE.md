@@ -72,6 +72,15 @@ class RealtimeVoiceProvider(Protocol):  # optional speech-to-speech session (ADR
 - **Resilience:** per-call timeout, retry with backoff on retryable errors (429/5xx/timeouts) honouring `Retry-After`, a circuit breaker per provider (Redis-shared state), and fallback to the next route entry. Fallback is recorded on the evaluation (`result.meta.fallback_used`) because a model change may shift scores.
 - **Concurrency limits** per provider (Redis semaphore) to stay under account rate limits. Backpressure: queue depth alerts and quota-aware admission (§9).
 
+### 3.1 Implemented adapters (2026-11-20)
+
+| Adapter | Used by | Config |
+|---|---|---|
+| `providers/gemini.py` (`GeminiLLM`, `GeminiSTT`) | Writing/Speaking evaluation, transcription; assistant fallback | `GEMINI_API_KEY`, `GEMINI_MODEL` |
+| `providers/openrouter.py` (`OpenRouterLLM`) | Site assistant (`graphs/assistant.py`, prompt `assistant.chat`) | `OPENROUTER_API_KEY`, `ASSISTANT_MODELS` (comma-separated; only `:free` models or `openrouter/free` are accepted at startup) |
+
+The backend resolves both in `app/core/ai.py` (`Providers.assistant`). `OpenRouterLLM` tries the models in order with one overall deadline; 404/408/429/5xx/timeouts fall through to the next model, 400/401/402/403 stop immediately. Default model: `google/gemma-4-26b-a4b-it:free`. `ASSISTANT_REASONING` (default `on`) sends OpenRouter `reasoning: {enabled, exclude: true}` with 2000 extra completion tokens; reasoning is never returned, stored or passed back (`reasoning_details` is not kept, since only plain content is stored client-side). When every model failed and one answered 429, the error carries `rate_limited=True` and the API answers `503 assistant_busy`. The assistant workflow trims the conversation (12 turns, 2000 chars each), strips control characters, and replaces any answer that contains the system prompt's canary token.
+
 ## 4. Writing Evaluation Graph
 
 ```mermaid
